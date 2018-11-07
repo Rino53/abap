@@ -83,38 +83,38 @@ method BAPI_MSGCOLL.
     append bapiret to bapi_t.
   endif.
 
-  if lines( msg_t ) > 0.    " Приоритет BAPI, он заполняется чаще
+  if lines( msg_t ) > 0.    " BAPI priority
 
     clear: bapi_l, bapiret.
 
     loop at msg_t  into msg_l.
 
-      . bapi_l-type        = msg_l-msgtyp  " Тип сообщения
-      . bapi_l-id          = msg_l-msgid   " ИдСообщения
-      . bapi_l-number      = msg_l-msgnr   " Номер сообщения
-*      . bapi_l-message     =   " Текст сообщения
-*      . bapi_l-log_no      =   " Номер журнала
-*      . bapi_l-log_msg_no  =   " Текущий № сообщения
-      . bapi_l-message_v1  = msg_l-msgv1   " Переменная сообщения
-      . bapi_l-message_v2  = msg_l-msgv2   " Переменная сообщения
-      . bapi_l-message_v3  = msg_l-msgv3   " Переменная сообщения
-      . bapi_l-message_v4  = msg_l-msgv4   " Переменная сообщения
-*      . bapi_l-parameter   =   " Имя параметра
-*      . bapi_l-row         =   " Строка в параметре
-*      . bapi_l-field       =   " Имя поля
-*      . bapi_l-system      =   " Логич. сист. (из которой происх. док.)
+      . bapi_l-type        = msg_l-msgtyp  " Type
+      . bapi_l-id          = msg_l-msgid   " Id
+      . bapi_l-number      = msg_l-msgnr   " Number
+*      . bapi_l-message     =   " text
+*      . bapi_l-log_no      =   " journal num
+*      . bapi_l-log_msg_no  =   " current num of message
+      . bapi_l-message_v1  = msg_l-msgv1   
+      . bapi_l-message_v2  = msg_l-msgv2   
+      . bapi_l-message_v3  = msg_l-msgv3   
+      . bapi_l-message_v4  = msg_l-msgv4   
+*      . bapi_l-parameter   =   " param name
+*      . bapi_l-row         =   " 
+*      . bapi_l-field       =   " 
+*      . bapi_l-system      =   " 
       .
 
-*      msg_l-tcode    " КодТранз
-*      msg_l-dyname   " BDC-модули
-*      msg_l-dynumb   " № экрана BDC
-*      msg_l-msgspra  " ИндикЯзыка
-*      msg_l-env      " Операция
-*      msg_l-fldname  " Имя поля
+*      msg_l-tcode    " tcode
+*      msg_l-dyname   " bdc module
+*      msg_l-dynumb   " bdc dynpro
+*      msg_l-msgspra  " lang idx
+*      msg_l-env      " operation
+*      msg_l-fldname  " fieldname
 
       append bapi_l  to bapiret_t.
 
-      if bapiret-id eq space.  " Первое сообщение
+      if bapiret-id eq space.  " first message
         bapiret = bapi_l.
       endif.
 
@@ -128,30 +128,30 @@ method BAPI_MSGCOLL.
     loop at bapi_t  into bapi_l.
 
 
-      . msg_l-msgtyp      = bapi_l-type         " Тип сообщения
-      . msg_l-msgid       = bapi_l-id           " ИдСообщения
-      . msg_l-msgnr       = bapi_l-number       " Номер сообщения
-*      .                   = bapi_l-message    " Текст сообщения
-*      .                   = bapi_l-log_no     " Номер журнала
-*      .                   = bapi_l-log_msg_no " Текущий № сообщения
-      . msg_l-msgv1       = bapi_l-message_v1   " Переменная сообщения
-      . msg_l-msgv2       = bapi_l-message_v2   " Переменная сообщения
-      . msg_l-msgv3       = bapi_l-message_v3   " Переменная сообщения
-      . msg_l-msgv4       = bapi_l-message_v4   " Переменная сообщения
-*      .                   = bapi_l-parameter   " Имя параметра
-*      .                   = bapi_l-row         " Строка в параметре
-*      .                   = bapi_l-field       " Имя поля
-*      .                   = bapi_l-system      " Логич. сист. (из которой происх. док.)
+      . msg_l-msgtyp      = bapi_l-type       
+      . msg_l-msgid       = bapi_l-id         
+      . msg_l-msgnr       = bapi_l-number     
+*      .                   = bapi_l-message   
+*      .                   = bapi_l-log_no    
+*      .                   = bapi_l-log_msg_no
+      . msg_l-msgv1       = bapi_l-message_v1 
+      . msg_l-msgv2       = bapi_l-message_v2 
+      . msg_l-msgv3       = bapi_l-message_v3 
+      . msg_l-msgv4       = bapi_l-message_v4 
+*      .                   = bapi_l-parameter 
+*      .                   = bapi_l-row       
+*      .                   = bapi_l-field     
+*      .                   = bapi_l-system    
       .
 
-*      msg_l-tcode    " КодТранз
-*      msg_l-dyname   " BDC-модули
-*      msg_l-dynumb   " № экрана BDC
-*      msg_l-msgspra  " ИндикЯзыка
-*      msg_l-env      " Операция
-*      msg_l-fldname  " Имя поля
+*      msg_l-tcode    
+*      msg_l-dyname   
+*      msg_l-dynumb   
+*      msg_l-msgspra  
+*      msg_l-env      
+*      msg_l-fldname  
 
-      if msgcoll-msgid eq space.  " Первое сообщение
+      if msgcoll-msgid eq space.  
         msgcoll = msg_l.
       endif.
 
