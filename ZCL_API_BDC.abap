@@ -203,7 +203,7 @@ ENDMETHOD.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 method constructor.
 
-  me->tcode = TO_UPPER( tcode ).
+  me->tcode = tcode.
 
   field-symbols: <>    type bdcdata.
   insert initial line  into data  assigning <>  index 1.
