@@ -3,7 +3,7 @@ class ZCL_API_BDC definition
   final
   create public .
 
-*"* public components of class zcl_api_bdc
+*"* public components of class ZCL_API_BDC
 *"* do not include other source files here!!!
 public section.
 
@@ -21,6 +21,9 @@ public section.
       !FVAL type ANY optional
       !IV_DELIMITER type CHAR1 default '|' .
   methods SCREEN
+    importing
+      !PAR type ANY .
+  methods CURSOR
     importing
       !PAR type ANY .
   methods SUBSCR
@@ -45,10 +48,10 @@ public section.
       !MSGCOLL_T type TAB_BDCMSGCOLL optional
       !MSGCOLL type BDCMSGCOLL optional .
 protected section.
-*"* protected components of class zcl_api_bdc
+*"* protected components of class ZCL_API_BDC
 *"* do not include other source files here!!!
 private section.
-*"* private components of class zcl_api_bdc
+*"* private components of class ZCL_API_BDC
 *"* do not include other source files here!!!
 ENDCLASS.
 
@@ -95,14 +98,14 @@ method BAPI_MSGCOLL.
 *      . bapi_l-message     =   " text
 *      . bapi_l-log_no      =   " journal num
 *      . bapi_l-log_msg_no  =   " current num of message
-      . bapi_l-message_v1  = msg_l-msgv1   
-      . bapi_l-message_v2  = msg_l-msgv2   
-      . bapi_l-message_v3  = msg_l-msgv3   
-      . bapi_l-message_v4  = msg_l-msgv4   
+      . bapi_l-message_v1  = msg_l-msgv1
+      . bapi_l-message_v2  = msg_l-msgv2
+      . bapi_l-message_v3  = msg_l-msgv3
+      . bapi_l-message_v4  = msg_l-msgv4
 *      . bapi_l-parameter   =   " param name
-*      . bapi_l-row         =   " 
-*      . bapi_l-field       =   " 
-*      . bapi_l-system      =   " 
+*      . bapi_l-row         =   "
+*      . bapi_l-field       =   "
+*      . bapi_l-system      =   "
       .
 
 *      msg_l-tcode    " tcode
@@ -128,30 +131,30 @@ method BAPI_MSGCOLL.
     loop at bapi_t  into bapi_l.
 
 
-      . msg_l-msgtyp      = bapi_l-type       
-      . msg_l-msgid       = bapi_l-id         
-      . msg_l-msgnr       = bapi_l-number     
-*      .                   = bapi_l-message   
-*      .                   = bapi_l-log_no    
+      . msg_l-msgtyp      = bapi_l-type
+      . msg_l-msgid       = bapi_l-id
+      . msg_l-msgnr       = bapi_l-number
+*      .                   = bapi_l-message
+*      .                   = bapi_l-log_no
 *      .                   = bapi_l-log_msg_no
-      . msg_l-msgv1       = bapi_l-message_v1 
-      . msg_l-msgv2       = bapi_l-message_v2 
-      . msg_l-msgv3       = bapi_l-message_v3 
-      . msg_l-msgv4       = bapi_l-message_v4 
-*      .                   = bapi_l-parameter 
-*      .                   = bapi_l-row       
-*      .                   = bapi_l-field     
-*      .                   = bapi_l-system    
+      . msg_l-msgv1       = bapi_l-message_v1
+      . msg_l-msgv2       = bapi_l-message_v2
+      . msg_l-msgv3       = bapi_l-message_v3
+      . msg_l-msgv4       = bapi_l-message_v4
+*      .                   = bapi_l-parameter
+*      .                   = bapi_l-row
+*      .                   = bapi_l-field
+*      .                   = bapi_l-system
       .
 
-*      msg_l-tcode    
-*      msg_l-dyname   
-*      msg_l-dynumb   
-*      msg_l-msgspra  
-*      msg_l-env      
-*      msg_l-fldname  
+*      msg_l-tcode
+*      msg_l-dyname
+*      msg_l-dynumb
+*      msg_l-msgspra
+*      msg_l-env
+*      msg_l-fldname
 
-      if msgcoll-msgid eq space.  
+      if msgcoll-msgid eq space.
         msgcoll = msg_l.
       endif.
 
@@ -221,6 +224,18 @@ method constructor.
   options-nobiend   = ''.
 
   delimiter = iv_delimiter.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_BDC->CURSOR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] PAR                            TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method CURSOR.
+
+  field( fnam = 'BDC_CURSOR' fval = par ).
 
 endmethod.
 
