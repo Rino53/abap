@@ -3,7 +3,7 @@ class ZCL_API_LONGTEXT definition
   create private .
 
 public section.
-*"* public components of class zcl_api_longtext
+*"* public components of class ZCL_API_LONGTEXT
 *"* do not include other source files here!!!
   type-pools ABAP .
 
@@ -48,7 +48,7 @@ public section.
       !IV_FORCE_SPACES type BOOLE_D default ABAP_FALSE
     changing
       !CT_TEXTS type LOP_TDLINE_TAB optional
-      !CT_LINES type TTTEXT optional
+      !CT_LINES type TLINE_TAB optional
     returning
       value(RV_TEXT) type STRING .
   class-methods SHOW
@@ -81,6 +81,7 @@ public section.
       !IV_OBJECT type THEAD-TDOBJECT optional
       !IS_HEADER_IN type THEAD optional
       !IV_SAVEMODE_DIRECT type BOOLE_D default ABAP_TRUE
+      !IV_INSERT type ABAP_BOOL default ABAP_FALSE
     changing
       !CT_LINES type TLINE_TAB optional
       !CT_TEXTS type LOP_TDLINE_TAB optional
@@ -106,10 +107,15 @@ public section.
       !IV_STRING type ANY
     returning
       value(RV_TLINES) type TLINE_TAB .
+  class-methods STRING_PARSE_O2O
+    importing
+      !IV_TEXT type ANY
+    returning
+      value(RT_TLINES) type TLINE_TAB .
 protected section.
 private section.
 
-*"* private components of class zcl_api_longtext
+*"* private components of class ZCL_API_LONGTEXT
 *"* do not include other source files here!!!
   data MT_TEXTS_SELECTED type TY_T_TEXTS_MULTI .
 
@@ -475,7 +481,7 @@ ENDMETHOD.
 * | [--->] IV_INITIAL_CLEAR               TYPE        BOOLE_D (default =ABAP_TRUE)
 * | [--->] IV_FORCE_SPACES                TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [<-->] CT_TEXTS                       TYPE        LOP_TDLINE_TAB(optional)
-* | [<-->] CT_LINES                       TYPE        TTTEXT(optional)
+* | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
 * | [<-()] RV_TEXT                        TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD read_single.
@@ -650,7 +656,7 @@ METHOD read_smart.
       lv_string = 'ICP' && lv_tdname_pattern.
       APPEND lv_string TO lr_name[].
 
-      DATA: lo_texts TYPE REF TO zcl_api_longtext.
+      DATA: lo_texts TYPE REF TO ZCL_API_LONGTEXT.
       lo_texts = read_multi( ir_object = lr_object[]
                              ir_id     = lr_id[]
                              ir_name   = lr_name[]
@@ -724,6 +730,7 @@ ENDMETHOD.
 * | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT(optional)
 * | [--->] IS_HEADER_IN                   TYPE        THEAD(optional)
 * | [--->] IV_SAVEMODE_DIRECT             TYPE        BOOLE_D (default =ABAP_TRUE)
+* | [--->] IV_INSERT                      TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
 * | [<-->] CT_TEXTS                       TYPE        LOP_TDLINE_TAB(optional)
 * | [<-()] RS_HEADER_OUT                  TYPE        THEAD
@@ -766,6 +773,7 @@ METHOD save_text.
   CALL FUNCTION 'SAVE_TEXT'
     EXPORTING
       header          = ls_header
+      insert          = iv_insert
       savemode_direct = iv_savemode_direct
     IMPORTING
       newheader       = rs_header_out
@@ -774,7 +782,6 @@ METHOD save_text.
     EXCEPTIONS
       OTHERS          = 1.
   IF sy-subrc <> 0.
-    "Если не удалось записать
     RETURN.
   ENDIF.
 
@@ -835,7 +842,7 @@ method SHOW.
     lv_max = iv_maximum_results.
   ENDIF.
 
-  DATA: lo_texts TYPE REF TO zcl_api_longtext.
+  DATA: lo_texts TYPE REF TO ZCL_API_LONGTEXT.
   lo_texts = read_multi( ir_object = lr_object[]
                         ir_id     = lr_id[]
                         ir_name   = lr_name[]
@@ -858,6 +865,83 @@ method SHOW.
 
 
 endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_LONGTEXT=>STRING_PARSE_O2O
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TEXT                        TYPE        ANY
+* | [<-()] RT_TLINES                      TYPE        TLINE_TAB
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD string_parse_o2o.
+
+    CLEAR rt_tlines[].
+
+    CHECK iv_text IS NOT INITIAL.
+
+    DATA: lv_count TYPE i,
+          lv_shift TYPE i,
+          lv_fdpos TYPE sy-fdpos,
+          lv_subrc TYPE sy-subrc,
+          ls_tline TYPE tline,
+          p_text   TYPE string.
+
+    p_text = iv_text.
+    ls_tline-tdformat = '*'.
+
+    REPLACE ALL OCCURRENCES OF '<b>' IN p_text WITH ''.
+    REPLACE ALL OCCURRENCES OF '</b>' IN p_text WITH ''.
+    REPLACE ALL OCCURRENCES OF '"' IN p_text WITH ''.
+    CONDENSE p_text.
+
+    DO.
+      lv_subrc = 4.
+      CLEAR lv_fdpos.
+      MOVE strlen( p_text ) TO lv_count.
+
+      SEARCH p_text FOR '\n'.
+      IF sy-subrc = 0 AND ( sy-fdpos < lv_fdpos OR lv_fdpos IS INITIAL ).
+        lv_fdpos = sy-fdpos.
+        lv_shift = 2.
+        lv_subrc = 0.
+      ENDIF.
+      SEARCH p_text FOR '\r'.
+      IF sy-subrc = 0 AND ( sy-fdpos < lv_fdpos OR ( lv_fdpos IS INITIAL
+      AND lv_subrc <> 0 ) ).
+        lv_fdpos = sy-fdpos.
+        lv_shift = 2.
+        lv_subrc = 0.
+      ENDIF.
+      SEARCH p_text FOR '<br />'.
+      IF sy-subrc = 0 AND ( sy-fdpos < lv_fdpos OR ( lv_fdpos IS INITIAL
+      AND lv_subrc <> 0 ) ).
+        lv_fdpos = sy-fdpos.
+        lv_shift = 6.
+        lv_subrc = 0.
+      ENDIF.
+
+      IF lv_subrc = 0 AND lv_fdpos < 132.
+        ls_tline-tdline = p_text(lv_fdpos).
+        APPEND ls_tline TO rt_tlines.
+        SHIFT p_text BY lv_fdpos PLACES LEFT.
+        SHIFT p_text BY lv_shift PLACES LEFT.
+        ls_tline-tdformat = '*'.
+      ELSEIF ( lv_subrc = 0 AND lv_fdpos >= 132 ) OR ( lv_subrc <> 0 AND
+      lv_count >= 132 ).
+        ls_tline-tdline = p_text(132).
+        APPEND ls_tline TO rt_tlines.
+        SHIFT p_text BY 132 PLACES LEFT.
+        ls_tline-tdformat = '='.
+      ELSEIF lv_subrc <> 0 AND lv_count < 132.
+        ls_tline-tdline = p_text.
+        APPEND ls_tline TO rt_tlines.
+        EXIT.
+      ENDIF.
+    ENDDO.
+    DELETE rt_tlines WHERE tdline = space.
+
+
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -911,30 +995,30 @@ ENDMETHOD.
             ls_line.
     lv_text = iv_string.
      IF lv_length >= strlen( lv_text ).
-       "Если текст влезает в одну строку таблицы
+       " if text can fill in one piece
        lv_length = strlen( lv_text ).
        ls_line-tdformat = '*'.
        ls_line-tdline   = lv_text+lv_offset(lv_length).
        APPEND ls_line TO lt_lines.
      ELSE.
-       "Если текст не влезает на одну строку
+       " if text cant fill in one line and we need to split
        WHILE lv_length + lv_offset <= strlen( lv_text ).
          ls_line-tdformat = '*'.
          ls_line-tdline   = lv_text+lv_offset(lv_length).
          APPEND ls_line TO lt_lines.
-         "Увеличиваем позицию с которой читаем
+         " add reading offset
          lv_offset = lv_offset + lv_length.
        ENDWHILE.
-       "Нужно забрать последний кусок
-       "Получаем разницу между длинной текста и смещением
+       " we need to take last piece
+       " get difference between text and offset
        lv_length = strlen( lv_text ) - lv_offset.
-       "Получаем текст
+       " get text remaining
        ls_line-tdformat = '*'.
        ls_line-tdline   = lv_text+lv_offset(lv_length).
        APPEND ls_line TO lt_lines.
      ENDIF.
    CATCH cx_sy_range_out_of_bounds.
-     "Случайно вышли за границу текста
+     " accidently get out of range
      RETURN.
   ENDTRY.
 
