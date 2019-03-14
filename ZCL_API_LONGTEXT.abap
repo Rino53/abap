@@ -28,6 +28,7 @@ public section.
     ty_t_texts_multi TYPE STANDARD TABLE OF ty_s_texts_multi .
 
   class-data MT_TEXTS_CACHE type TY_T_TEXTS_MULTI .
+  data MT_TEXTS_SELECTED type TY_T_TEXTS_MULTI .
 
   class-methods READ_SMART
     importing
@@ -69,6 +70,7 @@ public section.
       !IR_SPRAS type TY_R_LANGUS optional
       !IV_PACKAGE_SIZE type I default 3000
       !IV_MAXIMUM_RESULTS type I default 0
+      !IV_CHECK_ONLY type ABAP_BOOL default ABAP_FALSE
     returning
       value(RO_TEXTS) type ref to ZCL_API_LONGTEXT .
   class-methods REFRESH_CACHE .
@@ -114,10 +116,6 @@ public section.
       value(RT_TLINES) type TLINE_TAB .
 protected section.
 private section.
-
-*"* private components of class ZCL_API_LONGTEXT
-*"* do not include other source files here!!!
-  data MT_TEXTS_SELECTED type TY_T_TEXTS_MULTI .
 
   class-methods ADD_TO_CACHE
     importing
@@ -167,7 +165,7 @@ CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
     IF it_data IS SUPPLIED AND it_data[] IS NOT INITIAL.
 
       APPEND LINES OF it_data[] TO mt_texts_cache[].
-      DELETE ADJACENT DUPLICATES FROM mt_texts_cache COMPARING tdobject tdname tdid tdspras.
+*      DELETE ADJACENT DUPLICATES FROM mt_texts_cache COMPARING tdobject tdname tdid tdspras.
 
     ENDIF.
 
@@ -257,10 +255,11 @@ ENDMETHOD.
 * | [--->] IR_SPRAS                       TYPE        TY_R_LANGUS(optional)
 * | [--->] IV_PACKAGE_SIZE                TYPE        I (default =3000)
 * | [--->] IV_MAXIMUM_RESULTS             TYPE        I (default =0)
+* | [--->] IV_CHECK_ONLY                  TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * | [<-()] RO_TEXTS                       TYPE REF TO ZCL_API_LONGTEXT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD read_multi.
-" Last changed: 01.04.2015 10:36:41 by Rinat Salakhov
+    " Last changed: 01.04.2015 10:36:41 by Rinat Salakhov
 
     TYPES: BEGIN OF ty_stxl,
              relid    TYPE stxl-relid,
@@ -334,6 +333,14 @@ ENDMETHOD.
 
         CHECK t_stxh[] IS NOT INITIAL.
 
+        IF iv_check_only = abap_true.
+          LOOP AT t_stxh ASSIGNING FIELD-SYMBOL(<stxh>).
+            CLEAR ls_result.
+            MOVE-CORRESPONDING <stxh> TO ls_result.
+            APPEND ls_result TO ro_texts->mt_texts_selected[].
+          ENDLOOP.
+          RETURN.
+        ENDIF.
 
 * select compressed text lines in blocks of 3000 (adjustable)
         OPEN CURSOR cursor FOR
@@ -462,7 +469,7 @@ ENDMETHOD.
 
         CLOSE CURSOR cursor.
 
-      CATCH: cx_sy_open_sql_db. "#EC NO_HANDLER
+      CATCH: cx_sy_open_sql_db.                         "#EC NO_HANDLER
 
     ENDTRY.
 
