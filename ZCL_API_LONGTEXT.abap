@@ -28,8 +28,21 @@ public section.
     ty_t_texts_multi TYPE STANDARD TABLE OF ty_s_texts_multi .
 
   class-data MT_TEXTS_CACHE type TY_T_TEXTS_MULTI .
-  data MT_TEXTS_SELECTED type TY_T_TEXTS_MULTI .
 
+  class-methods COPY_TEXTS
+    importing
+      !SRC_ID type THEAD-TDID optional
+      !SRC_SPRAS type THEAD-TDSPRAS default '*'
+      !SRC_NAME type THEAD-TDNAME optional
+      !SRC_OBJECT type THEAD-TDOBJECT optional
+      !DST_ID type THEAD-TDID optional
+      !DST_SPRAS type THEAD-TDSPRAS optional
+      !DST_NAME type THEAD-TDNAME optional
+      !DST_OBJECT type THEAD-TDOBJECT optional
+    changing
+      !SRC_HEADERS type EMMA_THEAD_T optional
+    returning
+      value(RV_ERROR) type CHAR1 .
   class-methods READ_SMART
     importing
       !IV_ID type THEAD-TDID
@@ -70,7 +83,6 @@ public section.
       !IR_SPRAS type TY_R_LANGUS optional
       !IV_PACKAGE_SIZE type I default 3000
       !IV_MAXIMUM_RESULTS type I default 0
-      !IV_CHECK_ONLY type ABAP_BOOL default ABAP_FALSE
     returning
       value(RO_TEXTS) type ref to ZCL_API_LONGTEXT .
   class-methods REFRESH_CACHE .
@@ -116,6 +128,10 @@ public section.
       value(RT_TLINES) type TLINE_TAB .
 protected section.
 private section.
+
+*"* private components of class ZCL_API_LONGTEXT
+*"* do not include other source files here!!!
+  data MT_TEXTS_SELECTED type TY_T_TEXTS_MULTI .
 
   class-methods ADD_TO_CACHE
     importing
@@ -165,10 +181,87 @@ CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
     IF it_data IS SUPPLIED AND it_data[] IS NOT INITIAL.
 
       APPEND LINES OF it_data[] TO mt_texts_cache[].
-*      DELETE ADJACENT DUPLICATES FROM mt_texts_cache COMPARING tdobject tdname tdid tdspras.
+      DELETE ADJACENT DUPLICATES FROM mt_texts_cache COMPARING tdobject tdname tdid tdspras.
 
     ENDIF.
 
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_LONGTEXT=>COPY_TEXTS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] SRC_ID                         TYPE        THEAD-TDID(optional)
+* | [--->] SRC_SPRAS                      TYPE        THEAD-TDSPRAS (default ='*')
+* | [--->] SRC_NAME                       TYPE        THEAD-TDNAME(optional)
+* | [--->] SRC_OBJECT                     TYPE        THEAD-TDOBJECT(optional)
+* | [--->] DST_ID                         TYPE        THEAD-TDID(optional)
+* | [--->] DST_SPRAS                      TYPE        THEAD-TDSPRAS(optional)
+* | [--->] DST_NAME                       TYPE        THEAD-TDNAME(optional)
+* | [--->] DST_OBJECT                     TYPE        THEAD-TDOBJECT(optional)
+* | [<-->] SRC_HEADERS                    TYPE        EMMA_THEAD_T(optional)
+* | [<-()] RV_ERROR                       TYPE        CHAR1
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD copy_texts.
+
+    rv_error = 9.
+
+    DATA: lt_cpkeys TYPE STANDARD TABLE OF itctc,
+          ls_cpkey  TYPE itctc.
+
+    " find all texts to copy
+    IF src_headers IS INITIAL.
+      CALL FUNCTION 'SELECT_TEXT'
+        EXPORTING
+          object                  = src_object
+          name                    = src_name
+          id                      = src_id
+          language                = src_spras
+        TABLES
+          selections              = src_headers
+        EXCEPTIONS
+          wrong_access_to_archive = 1
+          OTHERS                  = 2.
+      IF sy-subrc <> 0.
+        rv_error = sy-subrc.
+        RETURN.
+      ENDIF.
+
+    ENDIF.
+
+    " build destination keys
+    LOOP AT src_headers INTO DATA(ls_headin) WHERE tdname IS NOT INITIAL
+                                               AND tdobject IS NOT INITIAL
+                                               AND tdid IS NOT INITIAL
+                                               AND tdspras IS NOT INITIAL.
+      CLEAR ls_cpkey.
+      ls_cpkey-srcobject = ls_headin-tdobject.
+      ls_cpkey-srcname   = ls_headin-tdname.
+      ls_cpkey-srcid     = ls_headin-tdid.
+      ls_cpkey-srclang   = ls_headin-tdspras.
+
+      ls_cpkey-destobject = COND #( WHEN dst_object IS NOT INITIAL THEN dst_object ELSE ls_cpkey-srcobject ).
+      ls_cpkey-destname   = COND #( WHEN dst_name   IS NOT INITIAL THEN dst_name   ELSE ls_cpkey-srcname ).
+      ls_cpkey-destid     = COND #( WHEN dst_id     IS NOT INITIAL THEN dst_id     ELSE ls_cpkey-srcid ).
+      ls_cpkey-destlang   = COND #( WHEN dst_spras  IS NOT INITIAL THEN dst_spras  ELSE ls_cpkey-srclang ).
+
+      IF ls_cpkey-srcobject  && ls_cpkey-srcname  && ls_cpkey-srcid  && ls_cpkey-srclang <>
+         ls_cpkey-destobject && ls_cpkey-destname && ls_cpkey-destid && ls_cpkey-destlang .
+        APPEND ls_cpkey TO lt_cpkeys.
+      ENDIF.
+    ENDLOOP.
+
+    IF lt_cpkeys IS INITIAL.
+      rv_error = 8.
+      RETURN.
+    ENDIF.
+
+    CALL FUNCTION 'COPY_TEXTS'
+      IMPORTING
+        error = rv_error
+      TABLES
+        texts = lt_cpkeys.
 
   ENDMETHOD.
 
@@ -255,11 +348,10 @@ ENDMETHOD.
 * | [--->] IR_SPRAS                       TYPE        TY_R_LANGUS(optional)
 * | [--->] IV_PACKAGE_SIZE                TYPE        I (default =3000)
 * | [--->] IV_MAXIMUM_RESULTS             TYPE        I (default =0)
-* | [--->] IV_CHECK_ONLY                  TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * | [<-()] RO_TEXTS                       TYPE REF TO ZCL_API_LONGTEXT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD read_multi.
-    " Last changed: 01.04.2015 10:36:41 by Rinat Salakhov
+" Last changed: 01.04.2015 10:36:41 by Rinat Salakhov
 
     TYPES: BEGIN OF ty_stxl,
              relid    TYPE stxl-relid,
@@ -333,14 +425,6 @@ ENDMETHOD.
 
         CHECK t_stxh[] IS NOT INITIAL.
 
-        IF iv_check_only = abap_true.
-          LOOP AT t_stxh ASSIGNING FIELD-SYMBOL(<stxh>).
-            CLEAR ls_result.
-            MOVE-CORRESPONDING <stxh> TO ls_result.
-            APPEND ls_result TO ro_texts->mt_texts_selected[].
-          ENDLOOP.
-          RETURN.
-        ENDIF.
 
 * select compressed text lines in blocks of 3000 (adjustable)
         OPEN CURSOR cursor FOR
@@ -469,7 +553,7 @@ ENDMETHOD.
 
         CLOSE CURSOR cursor.
 
-      CATCH: cx_sy_open_sql_db.                         "#EC NO_HANDLER
+      CATCH: cx_sy_open_sql_db. "#EC NO_HANDLER
 
     ENDTRY.
 
