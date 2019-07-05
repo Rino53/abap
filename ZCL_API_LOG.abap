@@ -1,5 +1,4 @@
-
-class /SIE/SSA_SD_CH_O2O_LOG definition
+class /SIE/AD_ZMS0_LOG definition
   public
   create public .
 
@@ -13,11 +12,6 @@ public section.
       popup TYPE char1 VALUE '3',                             "#EC NOTEXT
       no_tree TYPE char1 VALUE '4',                           "#EC NOTEXT
     END OF mc_sbal_profile .
-  constants:
-    BEGIN OF mc_window_action,
-      okay TYPE sy-ucomm VALUE '&ONT',                          "#EC NOTEXT
-      cancel TYPE sy-ucomm VALUE '&F12',                          "#EC NOTEXT
-    END OF mc_window_action .
   data NEW_MESSAGE type STRING .
   data DETLEVEL type BALLEVEL .
   data PROBCLASS type BALPROBCL .
@@ -31,8 +25,7 @@ public section.
 
   methods CONSTRUCTOR
     importing
-      !IV_HANDLER type BALLOGHNDL
-      !IV_TIMESTAMP type BALTIMSTMP optional .
+      !IV_HANDLER type BALLOGHNDL .
   class-methods CREATE_LOG
     importing
       value(IV_OBJECT) type BALOBJ_D optional
@@ -40,7 +33,7 @@ public section.
       value(IV_EXTNUMBER) type CLIKE optional
       !IV_INSTANCE_TYPE type CLIKE optional
     returning
-      value(RO_LOG) type ref to /SIE/SSA_SD_CH_O2O_LOG .
+      value(RO_LOG) type ref to /SIE/AD_ZMS0_LOG .
 *      !IO_EXCEPTION type ref to ZCX_BC_COMMON optional
   methods ADD_MESSAGE
     importing
@@ -49,8 +42,8 @@ public section.
       !IS_SYMSG type SYMSG optional
       !IT_BAPIRET type BAPIRET2_TAB optional
       !IS_BAPIRET type BAPIRET2 optional
-      !IT_BATCH type ETTCD_MSG_TABTYPE optional
-      !IO_APPL_LOG type ref to /SIE/SSA_SD_CH_O2O_LOG optional
+      !IT_BATCH type TAB_BDCMSGCOLL optional
+      !IO_APPL_LOG type ref to /SIE/AD_ZMS0_LOG optional
       !IT_ANYMSG type ANY TABLE optional
       !IS_ANYMSG type ANY optional .
   methods SHOW
@@ -58,9 +51,7 @@ public section.
       !IV_TITLE type BALTITLE optional
       !IV_DISPLAY_TYPE type CHAR1 default MC_SBAL_PROFILE-SINGLE
       !IO_CONTAINER type ref to CL_GUI_CONTAINER optional
-      !IV_POPUP type BOOLEAN default ''
-    returning
-      value(RV_UCOMM) type SY-UCOMM .
+      !IV_POPUP type BOOLEAN default '' .
   methods CLEAR .
   methods SAVE
     importing
@@ -76,7 +67,7 @@ public section.
       !IV_EXTNUMBER type CLIKE optional
       !IV_INSTANCE_TYPE type CLIKE optional
     returning
-      value(RO_LOG) type ref to /SIE/SSA_SD_CH_O2O_LOG .
+      value(RO_LOG) type ref to /SIE/AD_ZMS0_LOG .
   methods GET_MESSAGES
     returning
       value(EX_T_MSG) type BAL_T_MSG .
@@ -105,6 +96,9 @@ public section.
       !IV_USE_GRID type BOOLE_D default SPACE
       !IV_NO_TOOLBAR type BOOLE_D default ABAP_TRUE
       !IV_TITLE type BALTITLE optional .
+  methods GET_PROFILE
+    returning
+      value(RS_PROFILE) type BAL_S_PROF .
 protected section.
 
   data MV_HANDLE type BALLOGHNDL .
@@ -120,19 +114,19 @@ ENDCLASS.
 
 
 
-CLASS /SIE/SSA_SD_CH_O2O_LOG IMPLEMENTATION.
+CLASS /SIE/AD_ZMS0_LOG IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->ADD_MESSAGE
+* | Instance Public Method /SIE/AD_ZMS0_LOG->ADD_MESSAGE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IS_BAL_MSG                     TYPE        BAL_S_MSG(optional)
 * | [--->] IS_SY                          TYPE        SYST (default =SY)
 * | [--->] IS_SYMSG                       TYPE        SYMSG(optional)
 * | [--->] IT_BAPIRET                     TYPE        BAPIRET2_TAB(optional)
 * | [--->] IS_BAPIRET                     TYPE        BAPIRET2(optional)
-* | [--->] IT_BATCH                       TYPE        ETTCD_MSG_TABTYPE(optional)
-* | [--->] IO_APPL_LOG                    TYPE REF TO /SIE/SSA_SD_CH_O2O_LOG(optional)
+* | [--->] IT_BATCH                       TYPE        TAB_BDCMSGCOLL(optional)
+* | [--->] IO_APPL_LOG                    TYPE REF TO /SIE/AD_ZMS0_LOG(optional)
 * | [--->] IT_ANYMSG                      TYPE        ANY TABLE(optional)
 * | [--->] IS_ANYMSG                      TYPE        ANY(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -317,7 +311,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->CLEAR
+* | Instance Public Method /SIE/AD_ZMS0_LOG->CLEAR
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD clear.
@@ -339,34 +333,28 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->CONSTRUCTOR
+* | Instance Public Method /SIE/AD_ZMS0_LOG->CONSTRUCTOR
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_HANDLER                     TYPE        BALLOGHNDL
-* | [--->] IV_TIMESTAMP                   TYPE        BALTIMSTMP(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD CONSTRUCTOR.
 
+* Создаем лог для указанного HANDLER
   mv_handle = iv_handler.
-
-  IF iv_timestamp IS NOT INITIAL.
-    time_stmp = iv_timestamp.
-  ELSE.
-    GET TIME STAMP FIELD time_stmp.
-  ENDIF.
 
 ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method /SIE/SSA_SD_CH_O2O_LOG=>CREATE_LOG
+* | Static Public Method /SIE/AD_ZMS0_LOG=>CREATE_LOG
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJECT                      TYPE        BALOBJ_D(optional)
 * | [--->] IV_SUBOBJECT                   TYPE        BALSUBOBJ(optional)
 * | [--->] IV_EXTNUMBER                   TYPE        CLIKE(optional)
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
-* | [<-()] RO_LOG                         TYPE REF TO /SIE/SSA_SD_CH_O2O_LOG
+* | [<-()] RO_LOG                         TYPE REF TO /SIE/AD_ZMS0_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD create_log.
+METHOD CREATE_LOG.
 
   CLEAR ro_log.
 
@@ -379,10 +367,6 @@ METHOD create_log.
   lv_log_header-object    = iv_object.
   lv_log_header-subobject = iv_subobject.
   lv_log_header-extnumber = iv_extnumber.
-  lv_log_header-aldate    = sy-datum.
-  lv_log_header-altime    = sy-uzeit.
-  lv_log_header-aluser    = sy-uname.
-  lv_log_header-alprog    = sy-repid.
 
 * Пробуем создать лог
   CALL FUNCTION 'BAL_LOG_CREATE'
@@ -393,7 +377,7 @@ METHOD create_log.
     EXCEPTIONS
       log_header_inconsistent = 1
       OTHERS                  = 2.
-  CHECK sy-subrc = 0.
+  check sy-subrc = 0.
 
 * Лог создан так что создаем класс лога для созданного HANDLER
 
@@ -412,7 +396,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->GET_MESSAGES
+* | Instance Public Method /SIE/AD_ZMS0_LOG->GET_MESSAGES
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] EX_T_MSG                       TYPE        BAL_T_MSG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -465,7 +449,17 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->HAS_ERRORS
+* | Instance Public Method /SIE/AD_ZMS0_LOG->GET_PROFILE
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RS_PROFILE                     TYPE        BAL_S_PROF
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method GET_PROFILE.
+    rs_profile = MS_DISPPR.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method /SIE/AD_ZMS0_LOG->HAS_ERRORS
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RE_VALUE                       TYPE        ABAP_BOOL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -482,7 +476,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->HAS_MESSAGES
+* | Instance Public Method /SIE/AD_ZMS0_LOG->HAS_MESSAGES
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_MSG_TYPE                    TYPE        SYMSGTY(optional)
 * | [<-()] RE_VALUE                       TYPE        ABAP_BOOL
@@ -499,7 +493,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->HAS_WARNINGS
+* | Instance Public Method /SIE/AD_ZMS0_LOG->HAS_WARNINGS
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RE_VALUE                       TYPE        ABAP_BOOL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -515,14 +509,14 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method /SIE/SSA_SD_CH_O2O_LOG=>LOAD
+* | Static Public Method /SIE/AD_ZMS0_LOG=>LOAD
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IS_LOG_FILTER                  TYPE        BAL_S_LFIL(optional)
 * | [--->] IV_OBJECT                      TYPE        BALOBJ_D(optional)
 * | [--->] IV_SUBOBJECT                   TYPE        BALSUBOBJ(optional)
 * | [--->] IV_EXTNUMBER                   TYPE        CLIKE(optional)
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
-* | [<-()] RO_LOG                         TYPE REF TO /SIE/SSA_SD_CH_O2O_LOG
+* | [<-()] RO_LOG                         TYPE REF TO /SIE/AD_ZMS0_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD load.
 
@@ -574,7 +568,7 @@ METHOD load.
       log_not_found      = 1
       no_filter_criteria = 2
       OTHERS             = 3.
-  CHECK sy-subrc = 0.
+   check sy-subrc = 0.
 
   lt_hdr_tmp = lt_log_header.
   REFRESH lt_log_header.
@@ -585,35 +579,16 @@ METHOD load.
 
   CALL FUNCTION 'BAL_DB_LOAD'
     EXPORTING
-      i_t_log_header                = lt_log_header
-      i_exception_if_already_loaded = abap_true
+      i_t_log_header     = lt_log_header
     IMPORTING
-      e_t_log_handle                = lt_log_handle
+      e_t_log_handle     = lt_log_handle
     EXCEPTIONS
-      no_logs_specified             = 1
-      log_not_found                 = 2
-      log_already_loaded            = 3
-      OTHERS                        = 4.
-  IF sy-subrc = 3.
+      no_logs_specified  = 1
+      log_not_found      = 2
+      log_already_loaded = 3
+      OTHERS             = 4.
+   check sy-subrc = 0.
 
-    LOOP AT lt_log_header INTO DATA(ls_log_header) WHERE log_handle IS NOT INITIAL.
-      INSERT ls_log_header-log_handle INTO TABLE lt_log_handle.
-    ENDLOOP.
-
-    CALL FUNCTION 'BAL_DB_RELOAD'
-      EXPORTING
-        i_t_log_handle    = lt_log_handle
-      EXCEPTIONS
-        no_logs_specified = 1
-        log_not_found     = 2
-        OTHERS            = 3.
-    IF sy-subrc <> 0.
-      EXIT.
-    ENDIF.
-
-  ELSEIF sy-subrc <> 0.
-    EXIT.
-  ENDIF.
 
   CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
     EXPORTING
@@ -642,7 +617,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->MESSAGE_COUNT
+* | Instance Public Method /SIE/AD_ZMS0_LOG->MESSAGE_COUNT
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IM_MSG_TYPE                    TYPE        SYMSGTY(optional)
 * | [<-()] RE_COUNT                       TYPE        I
@@ -686,7 +661,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->REFRESH
+* | Instance Public Method /SIE/AD_ZMS0_LOG->REFRESH
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD refresh.
@@ -709,7 +684,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->SAVE
+* | Instance Public Method /SIE/AD_ZMS0_LOG->SAVE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IM_UPD_TASK                    TYPE        BOOLEAN (default =ABAP_FALSE)
 * | [--->] I_SAVE_ALL                     TYPE        BOOLEAN (default =ABAP_FALSE)
@@ -743,7 +718,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->SET_PROFILE
+* | Instance Public Method /SIE/AD_ZMS0_LOG->SET_PROFILE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1 (default =MC_SBAL_PROFILE-SINGLE)
 * | [--->] IV_TREE_WIDTH                  TYPE        I(optional)
@@ -809,15 +784,14 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method /SIE/SSA_SD_CH_O2O_LOG->SHOW
+* | Instance Public Method /SIE/AD_ZMS0_LOG->SHOW
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TITLE                       TYPE        BALTITLE(optional)
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1 (default =MC_SBAL_PROFILE-SINGLE)
 * | [--->] IO_CONTAINER                   TYPE REF TO CL_GUI_CONTAINER(optional)
 * | [--->] IV_POPUP                       TYPE        BOOLEAN (default ='')
-* | [<-()] RV_UCOMM                       TYPE        SY-UCOMM
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD show.
+METHOD SHOW.
 
   IF ms_disppr IS INITIAL AND iv_display_type IS SUPPLIED.
     set_profile( iv_display_type = iv_display_type ).
@@ -831,8 +805,6 @@ METHOD show.
   REFRESH lt_handle.
   INSERT mv_handle INTO TABLE lt_handle.
 
-  DATA(lv_old_ucomm) = sy-ucomm.
-
   IF io_container IS BOUND.
     CALL FUNCTION 'BAL_CNTL_CREATE'
       EXPORTING
@@ -845,7 +817,7 @@ METHOD show.
         profile_inconsistent = 1
         internal_error       = 2
         OTHERS               = 3.
-    CHECK sy-subrc = 0.
+     check sy-subrc = 0.
 
   ELSE.
 *    IF iv_popup IS NOT INITIAL.
@@ -855,7 +827,6 @@ METHOD show.
 *      ms_disppr-end_row   = i_top  + i_height.
 *      ms_disppr-pop_adjst = i_adjust.
 *    ENDIF.
-
     CALL FUNCTION 'BAL_DSP_LOG_DISPLAY'
       EXPORTING
         i_t_log_handle       = lt_handle
@@ -867,44 +838,7 @@ METHOD show.
         no_data_available    = 3
         no_authority         = 4.
   ENDIF.
-  CHECK sy-subrc = 0.
-
-  rv_ucomm = sy-ucomm.
-  sy-ucomm = lv_old_ucomm.
-  
-  * FORM show_log_and_save USING iv_show TYPE abap_bool.
-* 
-*   " some commands using go_log to store messages, show it here if we have something.
-*   IF go_log->has_messages( ).
-* 
-*     IF sy-dynnr(2) = '03' .
-*       go_protocol_300->clear( ).
-*       go_protocol_300->add_message( io_appl_log = go_log ).
-*     ELSE.
-*       go_protocol->clear( ).
-*       go_protocol->add_message( io_appl_log = go_log ).
-*     ENDIF.
-* 
-*     IF go_log->has_errors( ).
-*       go_log->show( ).
-*     ELSEIF iv_show = yes. " force show anyting in log
-*       IF go_log->message_count( ) = 1.
-*         DATA(lt_msg) = go_log->get_messages( ).
-*         DATA(ls_msg) = lt_msg[ 1 ].
-*         MESSAGE ID ls_msg-msgid TYPE 'S' NUMBER ls_msg-msgno
-*           WITH ls_msg-msgv1 ls_msg-msgv2 ls_msg-msgv3 ls_msg-msgv4 DISPLAY LIKE ls_msg-msgty.
-*       ELSE.
-*         go_log->show( ).
-*       ENDIF.
-*     ENDIF.
-* 
-*     go_log->clear( ).
-* 
-*   ENDIF.
-* 
-* ENDFORM.
+   check sy-subrc = 0.
 
 ENDMETHOD.
 ENDCLASS.
-
-
