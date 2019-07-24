@@ -38,6 +38,7 @@ public section.
       value(IV_SUBOBJECT) type BALSUBOBJ optional
       value(IV_EXTNUMBER) type CLIKE optional
       !IV_INSTANCE_TYPE type CLIKE optional
+      !IV_DISPLAY_TYPE type CHAR1 optional
     returning
       value(RO_LOG) type ref to ZCL_API_LOG .
 *      !IO_EXCEPTION type ref to ZCX_BC_COMMON optional
@@ -51,7 +52,14 @@ public section.
       !IT_BATCH type ETTCD_MSG_TABTYPE optional
       !IO_APPL_LOG type ref to ZCL_API_LOG optional
       !IT_ANYMSG type ANY TABLE optional
-      !IS_ANYMSG type ANY optional .
+      !IS_ANYMSG type ANY optional
+      !IV_TEXTMSG1 type SYST-MSGV1 optional
+      !IV_TEXTMSG2 type SYST-MSGV2 optional
+      !IV_TEXTMSG3 type SYST-MSGV3 optional
+      !IV_TEXTMSG4 type SYST-MSGV4 optional
+      !IV_TEXTMSGTY type SYST-MSGTY default 'I'
+      !IV_TEXTMSGID type SYST-MSGID default '01'
+      !IV_TEXTMSGNO type SYST-MSGNO default 319 .
   methods SHOW
     importing
       !IV_TITLE type BALTITLE optional
@@ -107,7 +115,8 @@ public section.
   methods SHOW_AND_CLEAR
     importing
       !IV_SHOW_ONLY_ERRORS type ABAP_BOOL default ABAP_FALSE
-      !IO_SAVE_PROTOCOL type ref to ZCL_API_LOG optional .
+      !IO_SAVE_PROTOCOL type ref to ZCL_API_LOG optional
+      !IV_SAVE_HANDLE type ABAP_BOOL default ABAP_FALSE .
 protected section.
 
   data MV_HANDLE type BALLOGHNDL .
@@ -138,6 +147,13 @@ CLASS ZCL_API_LOG IMPLEMENTATION.
 * | [--->] IO_APPL_LOG                    TYPE REF TO ZCL_API_LOG(optional)
 * | [--->] IT_ANYMSG                      TYPE        ANY TABLE(optional)
 * | [--->] IS_ANYMSG                      TYPE        ANY(optional)
+* | [--->] IV_TEXTMSG1                    TYPE        SYST-MSGV1(optional)
+* | [--->] IV_TEXTMSG2                    TYPE        SYST-MSGV2(optional)
+* | [--->] IV_TEXTMSG3                    TYPE        SYST-MSGV3(optional)
+* | [--->] IV_TEXTMSG4                    TYPE        SYST-MSGV4(optional)
+* | [--->] IV_TEXTMSGTY                   TYPE        SYST-MSGTY (default ='I')
+* | [--->] IV_TEXTMSGID                   TYPE        SYST-MSGID (default ='01')
+* | [--->] IV_TEXTMSGNO                   TYPE        SYST-MSGNO (default =319)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD add_message.
 
@@ -286,6 +302,35 @@ METHOD add_message.
     ENDLOOP.
   ENDIF.
 
+  IF iv_textmsg1 IS NOT INITIAL OR
+     iv_textmsg2 IS NOT INITIAL OR
+     iv_textmsg3 IS NOT INITIAL OR
+     iv_textmsg4 IS NOT INITIAL.
+
+    DATA: ls_syst TYPE syst.
+
+    ls_syst-msgty = sy-msgty.
+    ls_syst-msgid = sy-msgid.
+    ls_syst-msgno = sy-msgno.
+    ls_syst-msgv1 = sy-msgv1.
+    ls_syst-msgv2 = sy-msgv2.
+    ls_syst-msgv3 = sy-msgv3.
+    ls_syst-msgv4 = sy-msgv4.
+
+    MESSAGE ID iv_textmsgid TYPE iv_textmsgty NUMBER iv_textmsgno
+          WITH iv_textmsg1 iv_textmsg2 iv_textmsg3 iv_textmsg4 INTO me->new_message.
+    me->add_message( ).
+
+    sy-msgty = ls_syst-msgty.
+    sy-msgid = ls_syst-msgid.
+    sy-msgno = ls_syst-msgno.
+    sy-msgv1 = ls_syst-msgv1.
+    sy-msgv2 = ls_syst-msgv2.
+    sy-msgv3 = ls_syst-msgv3.
+    sy-msgv4 = ls_syst-msgv4.
+
+  ENDIF.
+
   IF
      is_bal_msg IS INITIAL AND
      is_symsg IS INITIAL AND
@@ -367,6 +412,7 @@ ENDMETHOD.
 * | [--->] IV_SUBOBJECT                   TYPE        BALSUBOBJ(optional)
 * | [--->] IV_EXTNUMBER                   TYPE        CLIKE(optional)
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
+* | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1(optional)
 * | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD create_log.
@@ -387,7 +433,7 @@ METHOD create_log.
   lv_log_header-aluser    = sy-uname.
   lv_log_header-alprog    = sy-repid.
 
-* Пробуем создать лог
+  " create log handler
   CALL FUNCTION 'BAL_LOG_CREATE'
     EXPORTING
       i_s_log                 = lv_log_header
@@ -398,8 +444,7 @@ METHOD create_log.
       OTHERS                  = 2.
   CHECK sy-subrc = 0.
 
-* Лог создан так что создаем класс лога для созданного HANDLER
-
+  " wrap handle in our object
   IF iv_instance_type IS NOT INITIAL.
     CREATE OBJECT ro_log
       TYPE (iv_instance_type)
@@ -409,6 +454,12 @@ METHOD create_log.
     CREATE OBJECT ro_log
       EXPORTING
         iv_handler = lv_handler.
+  ENDIF.
+
+  IF ro_log IS NOT INITIAL.
+    IF iv_display_type IS NOT INITIAL.
+      ro_log->set_profile( iv_display_type = iv_display_type ).
+    ENDIF.
   ENDIF.
 
 ENDMETHOD.
@@ -720,13 +771,9 @@ ENDMETHOD.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD SAVE.
 
-* Сохраняем лог
-
-* ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
   DATA lt_handler TYPE bal_t_logh.
   DATA ls_handler TYPE LINE OF bal_t_logh.
 
-* ПРОГРАММА
   MOVE mv_handle TO ls_handler.
   INSERT ls_handler INTO TABLE lt_handler.
 
@@ -740,7 +787,6 @@ METHOD SAVE.
       save_not_allowed = 2
       numbering_error  = 3
       OTHERS           = 4.
- check sy-subrc = 0.
 
 ENDMETHOD.
 
@@ -915,6 +961,7 @@ ENDMETHOD.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_SHOW_ONLY_ERRORS            TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * | [--->] IO_SAVE_PROTOCOL               TYPE REF TO ZCL_API_LOG(optional)
+* | [--->] IV_SAVE_HANDLE                 TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD show_and_clear.
 
@@ -923,6 +970,10 @@ ENDMETHOD.
       IF io_save_protocol IS NOT INITIAL.
         io_save_protocol->clear( ).
         io_save_protocol->add_message( io_appl_log = me ).
+      ENDIF.
+
+      IF iv_save_handle = abap_true.
+        me->save( ).
       ENDIF.
 
       IF me->has_errors( ).
