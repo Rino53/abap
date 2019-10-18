@@ -1,0 +1,24 @@
+class ZCL_BASE definition
+  public
+  abstract
+  create public .
+
+public section.
+*"* public components of class ZCL_BASE
+*"* do not include other source files here!!!
+
+  type-pools ABAP .
+  constants YES type ABAP_BOOL value ABAP_TRUE. "#EC NOTEXT
+  constants NO type ABAP_BOOL value ABAP_FALSE. "#EC NOTEXT
+protected section.
+*"* protected components of class ZCL_BASE
+*"* do not include other source files here!!!
+private section.
+*"* private components of class ZCL_BASE
+*"* do not include other source files here!!!
+ENDCLASS.
+
+
+
+CLASS ZCL_BASE IMPLEMENTATION.
+ENDCLASS.
