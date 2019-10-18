@@ -26,12 +26,22 @@ public section.
   constants C_OBTYP_VBP type JSTO-OBTYP value 'VBP' ##NO_TEXT.
   constants C_POSNR_INITIAL type POSNR_VA value '000000' ##NO_TEXT.
   class-data GT_VBAK_JEST_OLD type TT_JEST .
-
+  
+  class-methods TEXT_CONVERSION
+    importing
+      !IV_OBJNR type JSTO-OBJNR
+      !IV_TXT04 type TJ02T-TXT04
+      !IV_LANG type SY-LANGU default SY-LANGU
+      !IV_MODE type CHAR1 optional
+      !IV_STSMA type JSTO-STSMA optional
+    returning
+      value(RV_STATUS) type JEST-STAT .
   class-methods CHECK
     importing
       !IV_BYPASS_BUFFER type BOOLE_D default ABAP_FALSE
       !IV_OBJNR type JEST-OBJNR
-      !IV_STATUS type JEST-STAT
+      !IV_STATUS type JEST-STAT optional
+      !IV_TXT04 type J_TXT04 optional
     returning
       value(RV_OK) type SUBRC .
   class-methods CHANGE_INTERN
@@ -161,33 +171,43 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 
   ENDMETHOD.
 
-
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STATUS=>CHECK
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_BYPASS_BUFFER               TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [--->] IV_OBJNR                       TYPE        JEST-OBJNR
-* | [--->] IV_STATUS                      TYPE        JEST-STAT
+* | [--->] IV_STATUS                      TYPE        JEST-STAT(optional)
+* | [--->] IV_TXT04                       TYPE        J_TXT04(optional)
 * | [<-()] RV_OK                          TYPE        SUBRC
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method CHECK.
+  METHOD check.
+    DATA: l_status TYPE jest-stat.
 
     CLEAR rv_ok.
 
+    IF iv_status IS NOT INITIAL.
+      l_status = iv_status.
+    ELSEIF iv_txt04 IS NOT INITIAL.
+      l_status = text_conversion( iv_objnr = iv_objnr iv_txt04 = iv_txt04 ).
+    ELSE.
+      rv_ok = 9.
+      RETURN.
+    ENDIF.
+
     CALL FUNCTION 'STATUS_CHECK'
       EXPORTING
-        BYPASS_BUFFER           = iv_bypass_buffer
-        objnr                   = iv_objnr
-        status                  = iv_status
-     EXCEPTIONS
-       OBJECT_NOT_FOUND        = 1
-       STATUS_NOT_ACTIVE       = 2
-       OTHERS                  = 3.
+        bypass_buffer     = iv_bypass_buffer
+        objnr             = iv_objnr
+        status            = l_status
+      EXCEPTIONS
+        object_not_found  = 1
+        status_not_active = 2
+        OTHERS            = 3.
     IF sy-subrc <> 0.
       rv_ok = sy-subrc.
     ENDIF.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -278,4 +298,81 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 
 
   ENDMETHOD.
+  
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_STATUS=>TEXT_CONVERSION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_OBJNR                       TYPE        JSTO-OBJNR
+* | [--->] IV_TXT04                       TYPE        TJ02T-TXT04
+* | [--->] IV_LANG                        TYPE        SY-LANGU (default =SY-LANGU)
+* | [--->] IV_MODE                        TYPE        CHAR1(optional)
+* | [--->] IV_STSMA                       TYPE        JSTO-STSMA(optional)
+* | [<-()] RV_STATUS                      TYPE        JEST-STAT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD text_conversion.
+
+  IF iv_mode IS NOT INITIAL.
+
+    CALL FUNCTION 'STATUS_TEXT_CONVERSION'
+      EXPORTING
+        language           = iv_lang
+        mode               = iv_mode
+        objnr              = iv_objnr
+        stsma              = iv_stsma
+        txt04              = iv_txt04
+      IMPORTING
+        status_number      = rv_status
+      EXCEPTIONS
+        insufficient_input = 1
+        not_found          = 2
+        object_not_found   = 3
+        wrong_mode         = 4
+        OTHERS             = 5.
+    IF sy-subrc <> 0.
+      CLEAR rv_status.
+    ENDIF.
+
+  ELSE.
+
+    CALL FUNCTION 'STATUS_TEXT_CONVERSION'
+      EXPORTING
+        language           = iv_lang
+        mode               = 'E'
+        objnr              = iv_objnr
+        stsma              = iv_stsma
+        txt04              = iv_txt04
+      IMPORTING
+        status_number      = rv_status
+      EXCEPTIONS
+        insufficient_input = 1
+        not_found          = 2
+        object_not_found   = 3
+        wrong_mode         = 4
+        OTHERS             = 5.
+    IF sy-subrc <> 0.
+      CALL FUNCTION 'STATUS_TEXT_CONVERSION'
+        EXPORTING
+          language           = iv_lang
+          mode               = 'I'
+          objnr              = iv_objnr
+          stsma              = iv_stsma
+          txt04              = iv_txt04
+        IMPORTING
+          status_number      = rv_status
+        EXCEPTIONS
+          insufficient_input = 1
+          not_found          = 2
+          object_not_found   = 3
+          wrong_mode         = 4
+          OTHERS             = 5.
+      IF sy-subrc <> 0.
+        CLEAR rv_status.
+      ENDIF.
+    ENDIF.
+
+
+  ENDIF.
+
+
+ENDMETHOD.
 ENDCLASS.
