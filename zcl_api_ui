@@ -1,0 +1,490 @@
+class ZCL_API_UI definition
+  public
+  create public .
+
+*"* public components of class zcl_api_ui
+*"* do not include other source files here!!!
+public section.
+  type-pools ICON .
+
+  class-data DD07V_T type SWDTDD07V .
+
+  class-methods DOMA_GET
+    importing
+      !NAME type ANY
+      !VALUE type ANY
+    returning
+      value(DDTEXT_R) type STRING .
+  class-methods DYNP_READ
+    importing
+      !CPROG type ANY default SY-CPROG
+      !DYNNR type ANY default SY-DYNNR
+      !FIELD type ANY
+    exporting
+      value(VALUE) type ANY .
+  class-methods DYNP_UPDATE
+    importing
+      !CPROG type ANY default SY-CPROG
+      !DYNNR type ANY default SY-DYNNR
+      !FIELD type ANY
+      !VALUE type ANY .
+  class-methods POPUP_TO_CONFIRM
+    importing
+      !BUT1 type ANY default 'Да'(001)
+      !BUT1_ICON type ANY optional
+      !BUT1_QINFO type ANY optional
+      !BUT2 type ANY default 'Отмена'(002)
+      !BUT2_ICON type ANY default ICON_CANCEL
+      !BUT2_QINFO type ANY optional
+      !CANCEL type I default 0
+      !DEFAULT type I default 1
+      !PARAM_T type MPL_PARAMS optional
+      !TEXT type ANY
+      !TITLE type ANY
+      !X type I default 25
+      !Y type I default 6
+    returning
+      value(CONFIRM_R) type XFELD .
+  class-methods REQUEST_SHLP_VALUE
+    importing
+      !DYNPFIELD type ANY optional
+      !DYNPNR type ANY optional
+      !DYNPPROG type ANY optional
+      !REFFIELD type ANY optional
+      !REFTABLE type ANY optional
+      !RETFIELD type ANY optional
+      !SHLPNAME type ANY optional
+      !SHLPPAR type ANY optional
+    exporting
+      value(RET_T) type DMC_DDSHRETVAL_TABLE
+      value(VALUE) type ANY .
+  class-methods REQUEST_TABLE_VALUE
+    importing
+      !IV_DYNPPROG type SY-CPROG default SY-CPROG
+      !IV_RETFIELD type ANY
+      !IT_VALUES type STANDARD TABLE
+      !IV_DYNPNR type SY-DYNNR default SY-DYNNR
+      !IV_DYNPROFIELD type HELP_INFO-DYNPROFLD optional
+      !IV_WINDOW_TITLE type ANY optional
+      !IV_VALUE_ORG type DDBOOL_D default 'S'
+    exporting
+      value(VALUE) type ANY .
+protected section.
+*"* protected components of class ZCL_UI
+*"* do not include other source files here!!!
+private section.
+*"* private components of class ZCL_UI
+*"* do not include other source files here!!!
+ENDCLASS.
+
+
+
+CLASS ZCL_API_UI IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_UI=>DOMA_GET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] NAME                           TYPE        ANY
+* | [--->] VALUE                          TYPE        ANY
+* | [<-()] DDTEXT_R                       TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD doma_get.
+
+
+
+  DATA: BEGIN OF                call
+        , name                  TYPE ddobjname
+      " tables
+        , dd07v                 TYPE dd07v
+        , dd07v_tab             TYPE TABLE OF dd07v
+      , END OF                  call.
+
+  WRITE name TO call-name.
+  CHECK call-name CN ' 0'.
+
+  READ TABLE dd07v_t  BINARY SEARCH  INTO call-dd07v  WITH KEY domvalue_l = value.
+  IF sy-subrc EQ 0.
+
+    ddtext_r  = call-dd07v-ddtext.
+
+  ELSE.
+
+    CALL FUNCTION 'DDIF_DOMA_GET'
+      EXPORTING
+        name      = call-name
+        langu     = sy-langu
+      TABLES
+        dd07v_tab = call-dd07v_tab
+      EXCEPTIONS
+        OTHERS    = 2.
+
+    IF sy-subrc = 0.
+
+      READ TABLE call-dd07v_tab INTO call-dd07v  WITH KEY domvalue_l = value.
+      IF sy-subrc EQ 0.
+        ddtext_r  = call-dd07v-ddtext.
+      ENDIF.
+
+      APPEND LINES OF call-dd07v_tab TO dd07v_t.
+      SORT dd07v_t.
+      DELETE ADJACENT DUPLICATES FROM dd07v_t COMPARING ALL FIELDS.
+
+    ENDIF.
+
+  ENDIF.
+
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_UI=>DYNP_READ
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] CPROG                          TYPE        ANY (default =SY-CPROG)
+* | [--->] DYNNR                          TYPE        ANY (default =SY-DYNNR)
+* | [--->] FIELD                          TYPE        ANY
+* | [<---] VALUE                          TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method DYNP_READ.
+
+
+
+  data: dynp_t          type table of dynpread
+      , dynp            type dynpread
+      , dyname          type d020s-prog
+      , dynumb          type d020s-dnum.
+
+  dyname = cprog.
+  dynumb = dynnr.
+
+  dynp-fieldname  = field.
+    translate dynp-fieldname to upper case.
+
+  append dynp   to dynp_t.
+
+  call function 'DYNP_VALUES_READ'
+    exporting
+      dyname                         = dyname
+      dynumb                         = dynumb
+*     TRANSLATE_TO_UPPER             = ' '
+*     REQUEST                        = ' '
+*     PERFORM_CONVERSION_EXITS       = ' '
+      perform_input_conversion       = 'X'
+*     DETERMINE_LOOP_INDEX           = ' '
+    tables
+      dynpfields                     = dynp_t.
+*   exceptions
+*     invalid_abapworkarea           = 1
+*     invalid_dynprofield            = 2
+*     invalid_dynproname             = 3
+*     invalid_dynpronummer           = 4
+*     invalid_request                = 5
+*     no_fielddescription            = 6
+*     invalid_parameter              = 7
+*     undefind_error                 = 8
+*     double_conversion              = 9
+*     stepl_not_found                = 10
+*     others                         = 11
+
+  read table dynp_t into dynp  with key fieldname = field.
+  if sy-subrc eq 0.
+    value = dynp-fieldvalue.
+  endif.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_UI=>DYNP_UPDATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] CPROG                          TYPE        ANY (default =SY-CPROG)
+* | [--->] DYNNR                          TYPE        ANY (default =SY-DYNNR)
+* | [--->] FIELD                          TYPE        ANY
+* | [--->] VALUE                          TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method DYNP_UPDATE.
+
+
+
+  data: dynp_t          type table of dynpread
+      , dynp            type dynpread
+      , dyname          type d020s-prog
+      , dynumb          type d020s-dnum.
+
+  dyname = cprog.
+  dynumb = dynnr.
+
+  dynp-fieldvalue = value.
+  dynp-fieldname  = field.
+    translate dynp-fieldname to upper case.
+
+  append dynp   to dynp_t.
+
+  call function 'DYNP_VALUES_UPDATE'
+    exporting
+      dyname                     = dyname
+      dynumb                     = dynumb
+    tables
+      dynpfields                 = dynp_t.
+*    exceptions
+*      invalid_abapworkarea       = 1
+*      invalid_dynprofield        = 2
+*      invalid_dynproname         = 3
+*      invalid_dynpronummer       = 4
+*      invalid_request            = 5
+*      no_fielddescription        = 6
+*      undefind_error             = 7
+*      others                     = 8.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_UI=>POPUP_TO_CONFIRM
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] BUT1                           TYPE        ANY (default ='Да'(001))
+* | [--->] BUT1_ICON                      TYPE        ANY(optional)
+* | [--->] BUT1_QINFO                     TYPE        ANY(optional)
+* | [--->] BUT2                           TYPE        ANY (default ='Отмена'(002))
+* | [--->] BUT2_ICON                      TYPE        ANY (default =ICON_CANCEL)
+* | [--->] BUT2_QINFO                     TYPE        ANY(optional)
+* | [--->] CANCEL                         TYPE        I (default =0)
+* | [--->] DEFAULT                        TYPE        I (default =1)
+* | [--->] PARAM_T                        TYPE        MPL_PARAMS(optional)
+* | [--->] TEXT                           TYPE        ANY
+* | [--->] TITLE                          TYPE        ANY
+* | [--->] X                              TYPE        I (default =25)
+* | [--->] Y                              TYPE        I (default =6)
+* | [<-()] CONFIRM_R                      TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method POPUP_TO_CONFIRM.
+
+
+
+  data: begin of                call
+      " importing
+        , diagnose_object       type dokhl-object       " space
+        , icon_button_1         type icon-name          " space
+        , icon_button_2         type icon-name          " space
+        , default_button                                " '1'
+        , display_cancel_button                         " 'X'
+        , userdefined_f1_help   type dokhl-object       " space
+        , start_column          type sy-cucol           " 25
+        , start_row             type sy-curow           " 6
+        , popup_type            type icon-name
+        , iv_quickinfo_button_1 type text132            " space
+        , iv_quickinfo_button_2 type text132            " space
+      , end of                  call.
+
+  call-diagnose_object        = ''.
+  call-icon_button_1          = but1_icon.
+  call-icon_button_2          = but2_icon.
+  call-default_button         = default.
+
+  if cancel is initial.
+    call-display_cancel_button  = ''.
+  else.
+    call-display_cancel_button  = 'X'.
+  endif.
+  call-userdefined_f1_help    = ''.
+  call-start_column           = x.
+  call-start_row              = y.
+  call-popup_type             = ''.
+  call-iv_quickinfo_button_1  = but1_qinfo.
+  call-iv_quickinfo_button_2  = but2_qinfo.
+
+
+  call function 'POPUP_TO_CONFIRM'
+    exporting
+      titlebar                    = title
+      diagnose_object             = call-diagnose_object
+      text_question               = text
+      text_button_1               = but1
+      icon_button_1               = call-icon_button_1
+      text_button_2               = but2
+      icon_button_2               = call-icon_button_2
+      default_button              = call-default_button
+      display_cancel_button       = call-display_cancel_button
+      userdefined_f1_help         = call-userdefined_f1_help
+      start_column                = call-start_column
+      start_row                   = call-start_row
+      popup_type                  = call-popup_type
+      iv_quickinfo_button_1       = call-iv_quickinfo_button_1
+      iv_quickinfo_button_2       = call-iv_quickinfo_button_2
+    importing
+      answer                      = confirm_r   " 1(Yes), 2(No), A(Abort)
+    tables
+      parameter                   = param_t.
+
+  if confirm_r eq '1'.
+    confirm_r = 'X'.
+  else.
+    confirm_r = ''.
+  endif.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_UI=>REQUEST_SHLP_VALUE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] DYNPFIELD                      TYPE        ANY(optional)
+* | [--->] DYNPNR                         TYPE        ANY(optional)
+* | [--->] DYNPPROG                       TYPE        ANY(optional)
+* | [--->] REFFIELD                       TYPE        ANY(optional)
+* | [--->] REFTABLE                       TYPE        ANY(optional)
+* | [--->] RETFIELD                       TYPE        ANY(optional)
+* | [--->] SHLPNAME                       TYPE        ANY(optional)
+* | [--->] SHLPPAR                        TYPE        ANY(optional)
+* | [<---] RET_T                          TYPE        DMC_DDSHRETVAL_TABLE
+* | [<---] VALUE                          TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method REQUEST_SHLP_VALUE.
+
+
+
+  data: begin of          req
+        , tabname         type dfies-tabname
+        , fieldname       type dfies-fieldname
+        , searchhelp      type shlpname
+        , shlpparam       type shlpfield
+        , dynpprog        type sy-repid
+        , dynpnr          type sy-dynnr
+        , dynprofield     type help_info-dynprofld
+        , stepl           type systepl
+*       , ret_t           type table of ddshretval
+        , ret             type ddshretval
+        , value           type help_info-fldvalue
+      , end of            req
+
+      , user_reset        type c.
+
+  req-tabname     = reftable.
+  req-fieldname   = reffield.
+  req-searchhelp  = shlpname.
+  req-shlpparam   = shlppar.
+  req-dynpprog    = dynpprog.
+  req-dynpnr      = dynpnr.
+  req-dynprofield = dynpfield.
+  req-value       = value.
+
+  if dynpnr cn ' 0'.
+    get cursor line req-stepl.
+  endif.
+
+  call function 'F4IF_FIELD_VALUE_REQUEST'
+    exporting
+      tabname                   = req-tabname
+      fieldname                 = req-fieldname
+      searchhelp                = req-searchhelp
+      shlpparam                 = req-shlpparam
+      dynpprog                  = req-dynpprog
+      dynpnr                    = req-dynpnr
+      dynprofield               = req-dynprofield
+      stepl                     = req-stepl
+      value                     = req-value
+*     MULTIPLE_CHOICE           = ' '
+      display                   = 'F'
+*     SUPPRESS_RECORDLIST       = ' '
+*     CALLBACK_PROGRAM          = ' '
+*     CALLBACK_FORM             = ' '
+*     SELECTION_SCREEN          = ' '
+    importing
+      user_reset                = user_reset
+    tables
+      return_tab                = ret_t
+    exceptions
+      field_not_found           = 1
+      no_help_for_field         = 2
+      inconsistent_help         = 3
+      no_values_found           = 4
+      others                    = 5.
+
+    check sy-subrc = 0
+      and user_reset eq ''.
+
+  data l          type string.
+
+  if retfield ne ''.
+    l = retfield.
+  elseif req-fieldname ne ''.
+    l = req-fieldname.
+  elseif req-shlpparam ne ''.
+    l = req-shlpparam.
+  else.
+    l = req-dynprofield.
+  endif.
+
+  read table ret_t into req-ret  with key fieldname = l. "#EC WARNOK
+  value = req-ret-fieldval.
+
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_UI=>REQUEST_TABLE_VALUE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_DYNPPROG                    TYPE        SY-CPROG (default =SY-CPROG)
+* | [--->] IV_RETFIELD                    TYPE        ANY
+* | [--->] IT_VALUES                      TYPE        STANDARD TABLE
+* | [--->] IV_DYNPNR                      TYPE        SY-DYNNR (default =SY-DYNNR)
+* | [--->] IV_DYNPROFIELD                 TYPE        HELP_INFO-DYNPROFLD(optional)
+* | [--->] IV_WINDOW_TITLE                TYPE        ANY(optional)
+* | [--->] IV_VALUE_ORG                   TYPE        DDBOOL_D (default ='S')
+* | [<---] VALUE                          TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method REQUEST_TABLE_VALUE.
+
+
+
+  clear value.
+
+  data: fieldname       type dfies-fieldname
+      , retval_l        type ddshretval
+      , retval_t        like table of retval_l
+      , user_reset      type c.
+*      , dselc_l         type dselc
+*      , dselc_t         like table of dselc_l.
+
+  fieldname = iv_retfield.
+
+  call function 'F4IF_INT_TABLE_VALUE_REQUEST'
+    exporting
+*     DDIC_STRUCTURE         = ' '
+      retfield               = fieldname
+*     PVALKEY                = ' '
+      dynpprog               = iv_dynpprog
+      DYNPNR                 = iv_DYNPNR
+      DYNPROFIELD            = iv_dynprofield
+*     STEPL                  = 0
+      WINDOW_TITLE           = iv_window_title
+*     VALUE                  = ' '
+      VALUE_ORG              = iv_value_org
+*     MULTIPLE_CHOICE        = ' '
+*     DISPLAY                = ' '
+*     CALLBACK_PROGRAM       = ' '
+*     CALLBACK_FORM          = ' '
+*     MARK_TAB               =
+    importing
+      user_reset             = user_reset
+    tables
+      value_tab              = it_values
+*     FIELD_TAB              =
+      return_tab             = retval_t
+*     DYNPFLD_MAPPING        =
+    exceptions
+      parameter_error        = 1
+      no_values_found        = 2
+      others                 = 3.
+
+  check sy-subrc eq 0
+    and user_reset eq ''.
+
+  read table retval_t into retval_l index 1.
+  value = retval_l-fieldval.
+
+
+endmethod.
+ENDCLASS.
