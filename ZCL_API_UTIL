@@ -1,0 +1,86 @@
+class ZCL_API_COMMON definition
+  public
+  create public .
+
+public section.
+
+  class-methods CONV_ALPHA_INPUT
+    exporting
+      value(EV_OUTPUT) type ANY
+    changing
+      !CV_INPUT type ANY optional.
+
+  class-methods MOVE_CORRESPONDING_TAB
+    importing
+      !IT_SOURCE type TABLE
+    exporting
+      !ET_DESTIN type TABLE .
+
+protected section.
+private section.
+ENDCLASS.
+
+
+
+CLASS ZCL_API_COMMON IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_COMMON=>CONV_ALPHA_INPUT
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] EV_OUTPUT                      TYPE        ANY
+* | [<-->] CV_INPUT                       TYPE        ANY(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD conv_alpha_input.
+
+    IF ev_output IS REQUESTED.
+
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = cv_input
+        IMPORTING
+          output = ev_output.
+
+    ELSE.
+
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = cv_input
+        IMPORTING
+          output = cv_input.
+
+    ENDIF.
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_COMMON=>MOVE_CORRESPONDING_TAB
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_SOURCE                      TYPE        TABLE
+* | [<---] ET_DESTIN                      TYPE        TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD move_corresponding_tab.
+" rsalakhov 05.03.2015 11:11:29
+
+  DATA: ls_destination TYPE REF TO data.
+  FIELD-SYMBOLS: <ls_from> TYPE any,
+                 <ls_to>   TYPE any.
+
+  CREATE DATA ls_destination LIKE LINE OF et_destin.
+  ASSIGN ls_destination->* TO <ls_to>.
+
+  LOOP AT it_source ASSIGNING <ls_from>.
+
+    CLEAR: <ls_to>.
+    MOVE-CORRESPONDING <ls_from> TO <ls_to>.
+
+    APPEND <ls_to> TO et_destin.
+
+  ENDLOOP.
+
+
+ENDMETHOD.
+ENDCLASS.
