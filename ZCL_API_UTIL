@@ -15,6 +15,11 @@ public section.
       !IT_SOURCE type TABLE
     exporting
       !ET_DESTIN type TABLE .
+      
+  class-methods CALL_TCODE
+    importing
+      !IV_TCODE type SYTCODE
+      !IV_SKIP type ABAP_BOOL default YES .
 
 protected section.
 private section.
@@ -24,7 +29,20 @@ ENDCLASS.
 
 CLASS ZCL_API_COMMON IMPLEMENTATION.
 
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MRP_UTIL->CALL_TCODE
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method CALL_TCODE.
 
+  IF iv_skip = yes.
+    CALL TRANSACTION iv_tcode AND SKIP FIRST SCREEN.
+  ELSE.
+    CALL TRANSACTION iv_tcode.
+  ENDIF.
+
+
+endmethod.
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_COMMON=>CONV_ALPHA_INPUT
 * +-------------------------------------------------------------------------------------------------+
