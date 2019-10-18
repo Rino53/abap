@@ -39,6 +39,7 @@ public section.
       value(IV_EXTNUMBER) type CLIKE optional
       !IV_INSTANCE_TYPE type CLIKE optional
       !IV_DISPLAY_TYPE type CHAR1 optional
+      !IV_USE_GRID type ABAP_BOOL optional
     returning
       value(RO_LOG) type ref to ZCL_API_LOG .
 *      !IO_EXCEPTION type ref to ZCX_BC_COMMON optional
@@ -458,7 +459,8 @@ METHOD create_log.
 
   IF ro_log IS NOT INITIAL.
     IF iv_display_type IS NOT INITIAL.
-      ro_log->set_profile( iv_display_type = iv_display_type ).
+      ro_log->set_profile( iv_display_type = iv_display_type
+                           iv_use_grid     = iv_use_grid ).
     ENDIF.
   ENDIF.
 
@@ -921,38 +923,6 @@ METHOD show.
   rv_ucomm = sy-ucomm.
   sy-ucomm = lv_old_ucomm.
 
-* FORM show_log_and_save USING iv_show TYPE abap_bool.
-*
-*   " some commands using go_log to store messages, show it here if we have something.
-*   IF go_log->has_messages( ).
-*
-*     IF sy-dynnr(2) = '03' .
-*       go_protocol_300->clear( ).
-*       go_protocol_300->add_message( io_appl_log = go_log ).
-*     ELSE.
-*       go_protocol->clear( ).
-*       go_protocol->add_message( io_appl_log = go_log ).
-*     ENDIF.
-*
-*     IF go_log->has_errors( ).
-*       go_log->show( ).
-*     ELSEIF iv_show = yes. " force show anyting in log
-*       IF go_log->message_count( ) = 1.
-*         DATA(lt_msg) = go_log->get_messages( ).
-*         DATA(ls_msg) = lt_msg[ 1 ].
-*         MESSAGE ID ls_msg-msgid TYPE 'S' NUMBER ls_msg-msgno
-*           WITH ls_msg-msgv1 ls_msg-msgv2 ls_msg-msgv3 ls_msg-msgv4 DISPLAY LIKE ls_msg-msgty.
-*       ELSE.
-*         go_log->show( ).
-*       ENDIF.
-*     ENDIF.
-*
-*     go_log->clear( ).
-*
-*   ENDIF.
-*
-* ENDFORM.
-
 ENDMETHOD.
 
 
@@ -965,7 +935,7 @@ ENDMETHOD.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD show_and_clear.
 
-    IF me->has_messages( ).
+    IF abap_true = me->has_messages( ).
 
       IF io_save_protocol IS NOT INITIAL.
         io_save_protocol->clear( ).
@@ -976,17 +946,20 @@ ENDMETHOD.
         me->save( ).
       ENDIF.
 
-      IF me->has_errors( ).
+      IF me->message_count( ) = 1. " Show 1 msg in status bar
+        DATA: lt_msg TYPE bal_t_msg,
+              ls_msg TYPE LINE OF bal_t_msg.
+        lt_msg = me->get_messages( ).
+        READ TABLE lt_msg INTO ls_msg INDEX 1.
+        MESSAGE ID ls_msg-msgid TYPE 'S' NUMBER ls_msg-msgno
+          WITH ls_msg-msgv1 ls_msg-msgv2 ls_msg-msgv3 ls_msg-msgv4 DISPLAY LIKE ls_msg-msgty.
+
+      ELSEIF abap_true = me->has_errors( ). " Always show errors
         me->show( ).
-      ELSEIF iv_show_only_errors = abap_false. " force show anyting in log
-        IF me->message_count( ) = 1.
-          DATA(lt_msg) = me->get_messages( ).
-          DATA(ls_msg) = lt_msg[ 1 ].
-          MESSAGE ID ls_msg-msgid TYPE 'S' NUMBER ls_msg-msgno
-            WITH ls_msg-msgv1 ls_msg-msgv2 ls_msg-msgv3 ls_msg-msgv4 DISPLAY LIKE ls_msg-msgty.
-        ELSE.
-          me->show( ).
-        ENDIF.
+
+      ELSEIF iv_show_only_errors = abap_false. " Show others only if flag set
+        me->show( ).
+
       ENDIF.
 
       me->clear( ).
