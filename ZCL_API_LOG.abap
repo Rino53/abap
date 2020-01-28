@@ -1,8 +1,11 @@
 class ZCL_API_LOG definition
   public
+  inheriting from ZCL_BASE
   create public .
 
 public section.
+*"* public components of class ZCL_API_LOG
+*"* do not include other source files here!!!
   type-pools ABAP .
 
   constants:
@@ -28,6 +31,22 @@ public section.
 
   events ON_CONTENT_CHANGED .
 
+  methods ADD_MESSAGE_MRP
+    importing
+      !I_TABNAME type ZML34-TABNAME
+      !I_EXC_CODE type ZML34-Z_EXC_CODE
+      !I_MSGTY type MSGTY default 'W'
+      !I_MSGV2 type CLIKE optional
+      !I_MSGV3 type CLIKE optional
+      !I_MSGV4 type CLIKE optional
+    returning
+      value(RV_DESCRIPTION) type ZML34-CHAR50 .
+  class-methods MESSAGE_GET_DESCRIPTION
+    importing
+      !I_TABNAME type ZML34-TABNAME
+      !I_EXC_CODE type ZML34-Z_EXC_CODE
+    returning
+      value(RV_DESCRIPTION) type ZML34-CHAR50 .
   methods CONSTRUCTOR
     importing
       !IV_HANDLER type BALLOGHNDL
@@ -42,7 +61,6 @@ public section.
       !IV_USE_GRID type ABAP_BOOL optional
     returning
       value(RO_LOG) type ref to ZCL_API_LOG .
-*      !IO_EXCEPTION type ref to ZCX_BC_COMMON optional
   methods ADD_MESSAGE
     importing
       !IS_BAL_MSG type BAL_S_MSG optional
@@ -54,13 +72,20 @@ public section.
       !IO_APPL_LOG type ref to ZCL_API_LOG optional
       !IT_ANYMSG type ANY TABLE optional
       !IS_ANYMSG type ANY optional
-      !IV_TEXTMSG1 type SYST-MSGV1 optional
-      !IV_TEXTMSG2 type SYST-MSGV2 optional
-      !IV_TEXTMSG3 type SYST-MSGV3 optional
-      !IV_TEXTMSG4 type SYST-MSGV4 optional
+      !IV_TEXTMSG1 type ANY optional
+      !IV_TEXTMSG2 type ANY optional
+      !IV_TEXTMSG3 type ANY optional
+      !IV_TEXTMSG4 type ANY optional
       !IV_TEXTMSGTY type SYST-MSGTY default 'I'
       !IV_TEXTMSGID type SYST-MSGID default '01'
-      !IV_TEXTMSGNO type SYST-MSGNO default 319 .
+      !IV_TEXTMSGNO type SYST-MSGNO default 319
+      !IV_FROM_MEMORY type ABAP_BOOL default ABAP_FALSE .
+  class-methods INIT_POPUP_LOG
+    importing
+      !IV_OBJECT type BALOBJ_D optional
+      !IV_SUBOBJECT type BALSUBOBJ optional
+    returning
+      value(RV_LOG) type ref to ZCL_API_LOG .
   methods SHOW
     importing
       !IV_TITLE type BALTITLE optional
@@ -119,6 +144,8 @@ public section.
       !IO_SAVE_PROTOCOL type ref to ZCL_API_LOG optional
       !IV_SAVE_HANDLE type ABAP_BOOL default ABAP_FALSE .
 protected section.
+*"* protected components of class ZCL_API_LOG
+*"* do not include other source files here!!!
 
   data MV_HANDLE type BALLOGHNDL .
   data MS_HEADER type BAL_S_LOG .
@@ -129,6 +156,8 @@ protected section.
   data MV_COUNT_WARN type I .
   data MV_CONTROL_HANDLE type BALCNTHNDL .
 private section.
+*"* private components of class ZCL_API_LOG
+*"* do not include other source files here!!!
 ENDCLASS.
 
 
@@ -148,24 +177,28 @@ CLASS ZCL_API_LOG IMPLEMENTATION.
 * | [--->] IO_APPL_LOG                    TYPE REF TO ZCL_API_LOG(optional)
 * | [--->] IT_ANYMSG                      TYPE        ANY TABLE(optional)
 * | [--->] IS_ANYMSG                      TYPE        ANY(optional)
-* | [--->] IV_TEXTMSG1                    TYPE        SYST-MSGV1(optional)
-* | [--->] IV_TEXTMSG2                    TYPE        SYST-MSGV2(optional)
-* | [--->] IV_TEXTMSG3                    TYPE        SYST-MSGV3(optional)
-* | [--->] IV_TEXTMSG4                    TYPE        SYST-MSGV4(optional)
+* | [--->] IV_TEXTMSG1                    TYPE        ANY(optional)
+* | [--->] IV_TEXTMSG2                    TYPE        ANY(optional)
+* | [--->] IV_TEXTMSG3                    TYPE        ANY(optional)
+* | [--->] IV_TEXTMSG4                    TYPE        ANY(optional)
 * | [--->] IV_TEXTMSGTY                   TYPE        SYST-MSGTY (default ='I')
 * | [--->] IV_TEXTMSGID                   TYPE        SYST-MSGID (default ='01')
 * | [--->] IV_TEXTMSGNO                   TYPE        SYST-MSGNO (default =319)
+* | [--->] IV_FROM_MEMORY                 TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD add_message.
 
-  DATA lt_bal_msg TYPE bal_t_msg.
-  DATA ls_bal_msg TYPE bal_s_msg.
-  DATA ls_bapiret TYPE bapiret2.
+  DATA: lt_bal_msg TYPE bal_t_msg,
+        ls_bal_msg TYPE bal_s_msg,
+        ls_bapiret TYPE bapiret2,
+        ls_bapireturn TYPE bapireturn.
+  DATA: list_obj TYPE table_abaplist,
+        list_asc TYPE TABLE OF char255,
+        l_string TYPE char255.
+
   FIELD-SYMBOLS: <ls_any> TYPE any.
 
-
   IF is_bal_msg IS SUPPLIED.
-* Добавляем одиночное сообщение в лог
 
     ls_bal_msg = is_bal_msg.
     ls_bal_msg-detlevel = detlevel.
@@ -200,18 +233,8 @@ METHOD add_message.
   ENDIF.
 
   IF it_bapiret IS SUPPLIED.
-* Добавляем сообщения в лог из BAPIRET2
     LOOP AT it_bapiret INTO ls_bapiret.
       add_message( is_bapiret = ls_bapiret ).
-*      CLEAR ls_bal_msg.
-*      ls_bal_msg-msgty = ls_bapiret-type.
-*      ls_bal_msg-msgid = ls_bapiret-id.
-*      ls_bal_msg-msgno = ls_bapiret-number.
-*      ls_bal_msg-msgv1 = ls_bapiret-message_v1.
-*      ls_bal_msg-msgv2 = ls_bapiret-message_v2.
-*      ls_bal_msg-msgv3 = ls_bapiret-message_v3.
-*      ls_bal_msg-msgv4 = ls_bapiret-message_v4.
-*      add_message( is_bal_msg = ls_bal_msg ).
     ENDLOOP.
   ENDIF.
 
@@ -224,12 +247,12 @@ METHOD add_message.
     ls_bal_msg-msgv2 = is_bapiret-message_v2.
     ls_bal_msg-msgv3 = is_bapiret-message_v3.
     ls_bal_msg-msgv4 = is_bapiret-message_v4.
-    add_message( is_bal_msg = ls_bal_msg ).
+    add_message( is_bal_msg = ls_bal_msg )..
   ENDIF.
 
   IF it_batch IS SUPPLIED.
-* Добавляем сообщения в лог из пакетного ввода
-    LOOP AT it_batch INTO DATA(ls_batch).
+    DATA: ls_batch TYPE bdcmsgcoll.
+    LOOP AT it_batch INTO ls_batch.
       CLEAR ls_bal_msg.
       ls_bal_msg-msgty = ls_batch-msgtyp.
       ls_bal_msg-msgid = ls_batch-msgid.
@@ -286,6 +309,18 @@ METHOD add_message.
       IF ls_bapiret-id IS NOT INITIAL AND
          ls_bapiret-number IS NOT INITIAL.
         add_message( is_bapiret = ls_bapiret ).
+
+      ELSE.
+
+        CLEAR: ls_bapireturn, ls_bapiret.
+        MOVE-CORRESPONDING is_anymsg TO ls_bapireturn.
+        IF ls_bapireturn-code IS NOT INITIAL.
+          MOVE-CORRESPONDING ls_bapireturn TO ls_bapiret.
+          ls_bapiret-id      = ls_bapireturn-code(2).
+          ls_bapiret-number  = ls_bapireturn-code+2(3).
+          add_message( is_bapiret = ls_bapiret ).
+        ENDIF.
+
       ENDIF.
 
     ENDIF.
@@ -294,12 +329,6 @@ METHOD add_message.
   IF it_anymsg IS SUPPLIED.
     LOOP AT it_anymsg ASSIGNING <ls_any>.
       add_message( is_anymsg = <ls_any> ).
-*      CLEAR ls_bal_msg.
-*      MOVE-CORRESPONDING <ls_any> TO ls_bal_msg.
-*      IF ls_bal_msg-msgid IS NOT INITIAL AND
-*         ls_bal_msg-msgno IS NOT INITIAL.
-*        add_message( is_bal_msg = ls_bal_msg ).
-*      ENDIF.
     ENDLOOP.
   ENDIF.
 
@@ -308,7 +337,8 @@ METHOD add_message.
      iv_textmsg3 IS NOT INITIAL OR
      iv_textmsg4 IS NOT INITIAL.
 
-    DATA: ls_syst TYPE syst.
+    DATA: ls_syst TYPE syst,
+          ls_syst_new TYPE syst.
 
     ls_syst-msgty = sy-msgty.
     ls_syst-msgid = sy-msgid.
@@ -318,8 +348,13 @@ METHOD add_message.
     ls_syst-msgv3 = sy-msgv3.
     ls_syst-msgv4 = sy-msgv4.
 
+    WRITE iv_textmsg1 TO ls_syst_new-msgv1.
+    WRITE iv_textmsg2 TO ls_syst_new-msgv2.
+    WRITE iv_textmsg3 TO ls_syst_new-msgv3.
+    WRITE iv_textmsg4 TO ls_syst_new-msgv4.
+
     MESSAGE ID iv_textmsgid TYPE iv_textmsgty NUMBER iv_textmsgno
-          WITH iv_textmsg1 iv_textmsg2 iv_textmsg3 iv_textmsg4 INTO me->new_message.
+          WITH ls_syst_new-msgv1 ls_syst_new-msgv2 ls_syst_new-msgv3 ls_syst_new-msgv4 INTO me->new_message.
     me->add_message( ).
 
     sy-msgty = ls_syst-msgty.
@@ -332,6 +367,28 @@ METHOD add_message.
 
   ENDIF.
 
+  IF iv_from_memory = abap_true.
+    CALL FUNCTION 'LIST_FROM_MEMORY'
+      TABLES
+        listobject = list_obj
+      EXCEPTIONS
+        not_found  = 1
+        OTHERS     = 2.
+
+    CALL FUNCTION 'LIST_TO_ASCI'
+      TABLES
+        listasci           = list_asc
+        listobject         = list_obj
+      EXCEPTIONS
+        empty_list         = 1
+        list_index_invalid = 2
+        OTHERS             = 3.
+
+    LOOP AT list_asc INTO l_string.
+      add_message( iv_textmsg1 = l_string(50) iv_textmsg2 = l_string+50(50) iv_textmsg3 = l_string+100(50) iv_textmsg4 = l_string+150(50) ).
+    ENDLOOP.
+  ENDIF.
+
   IF
      is_bal_msg IS INITIAL AND
      is_symsg IS INITIAL AND
@@ -342,6 +399,7 @@ METHOD add_message.
      io_appl_log IS INITIAL AND
      it_anymsg IS INITIAL AND
      is_anymsg IS INITIAL AND
+     iv_from_memory IS INITIAL AND
 
      ( sy-msgno IS NOT INITIAL OR sy-msgid IS NOT INITIAL ) AND
      new_message IS NOT INITIAL.
@@ -366,12 +424,38 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_LOG->ADD_MESSAGE_MRP
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_TABNAME                      TYPE        ZML34-TABNAME
+* | [--->] I_EXC_CODE                     TYPE        ZML34-Z_EXC_CODE
+* | [--->] I_MSGTY                        TYPE        MSGTY (default ='W')
+* | [--->] I_MSGV2                        TYPE        CLIKE(optional)
+* | [--->] I_MSGV3                        TYPE        CLIKE(optional)
+* | [--->] I_MSGV4                        TYPE        CLIKE(optional)
+* | [<-()] RV_DESCRIPTION                 TYPE        ZML34-CHAR50
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD ADD_MESSAGE_MRP.
+
+  CHECK: i_tabname  IS NOT INITIAL,
+         i_exc_code IS NOT INITIAL.
+
+  add_message( iv_textmsgty = i_msgty
+               iv_textmsg1  = message_get_description( i_tabname = i_tabname i_exc_code = i_exc_code )
+               iv_textmsg2  = i_msgv2
+               iv_textmsg3  = i_msgv3
+               iv_textmsg4  = i_msgv4 ).
+
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_API_LOG->CLEAR
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD clear.
 
-* Удаляем все сообщения из лога
+* ####### ### ######### ## ####
   CALL FUNCTION 'BAL_LOG_MSG_DELETE_ALL'
     EXPORTING
       i_log_handle  = mv_handle
@@ -395,6 +479,8 @@ ENDMETHOD.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD CONSTRUCTOR.
 
+  super->constructor( ).
+
   mv_handle = iv_handler.
 
   IF iv_timestamp IS NOT INITIAL.
@@ -414,18 +500,19 @@ ENDMETHOD.
 * | [--->] IV_EXTNUMBER                   TYPE        CLIKE(optional)
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1(optional)
+* | [--->] IV_USE_GRID                    TYPE        ABAP_BOOL(optional)
 * | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD create_log.
 
   CLEAR ro_log.
 
-* Создаем программный лог для указанного объекта подобъекта
-* ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
+* ####### ########### ### ### ########## ####### ##########
+* ######### ##########
   DATA lv_log_header TYPE bal_s_log.
   DATA lv_handler    TYPE balloghndl.
 
-* ПРОГРАММА
+* #########
   lv_log_header-object    = iv_object.
   lv_log_header-subobject = iv_subobject.
   lv_log_header-extnumber = iv_extnumber.
@@ -460,7 +547,7 @@ METHOD create_log.
   IF ro_log IS NOT INITIAL.
     IF iv_display_type IS NOT INITIAL.
       ro_log->set_profile( iv_display_type = iv_display_type
-                           iv_use_grid     = iv_use_grid ).
+                           iv_use_grid = iv_use_grid ).
     ENDIF.
   ENDIF.
 
@@ -488,7 +575,7 @@ METHOD GET_MESSAGES.
   t_handle-low        = mv_handle.
   APPEND t_handle TO t_log_filter-log_handle.
 
-*   находим сообщения текущего лога
+*   ####### ######### ######## ####
   REFRESH lt_msg_handle.
   CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
     EXPORTING
@@ -502,7 +589,7 @@ METHOD GET_MESSAGES.
    check sy-subrc = 0.
 
   REFRESH EX_T_MSG  .
-*   читаем все найденные сообщения
+*   ###### ### ######### #########
   LOOP AT lt_msg_handle INTO t_msg_handle.
     CALL FUNCTION 'BAL_LOG_MSG_READ'
       EXPORTING
@@ -566,6 +653,23 @@ METHOD HAS_WARNINGS.
   CHECK message_count( 'W' ) IS INITIAL.
 
   CLEAR re_value.
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_LOG=>INIT_POPUP_LOG
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_OBJECT                      TYPE        BALOBJ_D(optional)
+* | [--->] IV_SUBOBJECT                   TYPE        BALSUBOBJ(optional)
+* | [<-()] RV_LOG                         TYPE REF TO ZCL_API_LOG
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD init_popup_log.
+
+  rv_log = create_log( iv_display_type = mc_sbal_profile-popup
+                       iv_use_grid     = true
+                       iv_object       = iv_object
+                       iv_subobject    = iv_subobject ).
 
 ENDMETHOD.
 
@@ -651,8 +755,8 @@ METHOD load.
       log_already_loaded            = 3
       OTHERS                        = 4.
   IF sy-subrc = 3.
-
-    LOOP AT lt_log_header INTO DATA(ls_log_header) WHERE log_handle IS NOT INITIAL.
+    DATA ls_log_header TYPE BALHDR.
+    LOOP AT lt_log_header INTO ls_log_header WHERE log_handle IS NOT INITIAL.
       INSERT ls_log_header-log_handle INTO TABLE lt_log_handle.
     ENDLOOP.
 
@@ -713,7 +817,7 @@ METHOD MESSAGE_COUNT.
        .
 
 
-* установка параметров вызова
+* ######### ########## ######
   REFRESH l_it_handles.
   APPEND mv_handle TO l_it_handles.
 
@@ -724,7 +828,7 @@ METHOD MESSAGE_COUNT.
     ls_msg_type-low    = im_msg_type.
     APPEND ls_msg_type TO ls_msg_filter-msgty.
   ENDIF.
-* вызов стандартного ФМ (подсчет числа сообщений)
+* ##### ############ ## (####### ##### #########)
   CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
     EXPORTING
       i_t_log_handle = l_it_handles
@@ -738,6 +842,45 @@ METHOD MESSAGE_COUNT.
   IF sy-subrc = 0.
     DESCRIBE TABLE l_it_messages LINES re_count.
   ENDIF.
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_LOG=>MESSAGE_GET_DESCRIPTION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_TABNAME                      TYPE        ZML34-TABNAME
+* | [--->] I_EXC_CODE                     TYPE        ZML34-Z_EXC_CODE
+* | [<-()] RV_DESCRIPTION                 TYPE        ZML34-CHAR50
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD message_get_description.
+
+************************************************************************
+* Method accepts a table name and exception code, uses the
+* parameters to access the exceptions table ZML34.
+* The description is passed back to the calling program, or the
+* exception condition NOTVALID is set if the record does not exist in
+* ZML34.
+************************************************************************
+  DATA: l_subrc TYPE sy-subrc.
+
+  CHECK i_exc_code IS NOT INITIAL.
+
+  rv_description = 'No description'.
+
+  CALL FUNCTION 'DB_EXISTS_TABLE'
+    EXPORTING
+      tabname = 'ZML34'
+    IMPORTING
+      subrc   = l_subrc.
+
+  IF l_subrc = 0.
+    SELECT SINGLE char50
+      FROM zml34
+      INTO rv_description
+    WHERE  tabname    = i_tabname
+      AND  z_exc_code = i_exc_code.
+  ENDIF.
+
 ENDMETHOD.
 
 
@@ -882,7 +1025,8 @@ METHOD show.
   REFRESH lt_handle.
   INSERT mv_handle INTO TABLE lt_handle.
 
-  DATA(lv_old_ucomm) = sy-ucomm.
+  DATA lv_old_ucomm TYPE sy-ucomm.
+  lv_old_ucomm = sy-ucomm.
 
   IF io_container IS BOUND.
     CALL FUNCTION 'BAL_CNTL_CREATE'
