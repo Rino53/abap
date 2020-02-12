@@ -1,0 +1,83 @@
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCLASS=>BAPI_SET_X
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] STRUCT                         TYPE        ANY
+* | [<-->] STRUCTX                        TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD bapi_set_x.
+    FIELD-SYMBOLS: <struct>  TYPE any,
+                   <structx> TYPE any,
+                   <val>     TYPE any,
+                   <valx>    TYPE any.
+
+    DATA: descriptor     TYPE REF TO  cl_abap_structdescr,
+          compo          TYPE abap_compdescr,
+          typedescriptor TYPE REF TO cl_abap_typedescr.
+
+    ASSIGN:
+        struct TO <struct>,
+        structx TO <structx>.
+
+    CLEAR <structx>.
+
+    TRY.
+        descriptor ?= cl_abap_typedescr=>describe_by_data( <struct> ).
+      CATCH cx_root.
+        RETURN.
+    ENDTRY.
+
+    LOOP AT descriptor->components INTO compo.
+      ASSIGN COMPONENT compo-name OF STRUCTURE <struct>
+        TO <val>.
+      IF <val> IS NOT INITIAL.
+        ASSIGN COMPONENT compo-name OF STRUCTURE <structx>
+          TO <valx>.
+        IF sy-subrc = 0.
+          typedescriptor = cl_abap_typedescr=>describe_by_data( <valx> ).
+          IF typedescriptor->absolute_name = '\TYPE=BAPIUPDATE'.
+            <valx> = 'X'.
+          ELSE.
+            <valx> = <val>.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCLASS=>BAPI_TABLE_SET_X
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TABLE                          TYPE        INDEX TABLE
+* | [<-->] TABLEX                         TYPE        INDEX TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD bapi_table_set_x.
+    FIELD-SYMBOLS: <table>   TYPE STANDARD TABLE,
+                   <tablex>  TYPE STANDARD TABLE,
+                   <struct>  TYPE any,
+                   <structx> TYPE any,
+                   <val>     TYPE any,
+                   <valx>    TYPE any.
+
+    DATA: descriptor     TYPE REF TO  cl_abap_structdescr,
+          compo          TYPE abap_compdescr,
+          typedescriptor TYPE REF TO cl_abap_typedescr.
+
+    ASSIGN:
+        table TO <table>,
+        tablex TO <tablex>.
+
+    DATA wax TYPE REF TO data.
+    CREATE DATA wax LIKE LINE OF <tablex>.
+    ASSIGN wax->* TO <structx>.
+
+    LOOP AT <table> ASSIGNING <struct>.
+      CLEAR <structx>.
+      CALL METHOD bapi_set_x
+        EXPORTING
+          struct  = <struct>
+        CHANGING
+          structx = <structx>.
+      APPEND <structx> TO <tablex>.
+    ENDLOOP.
+  ENDMETHOD.
