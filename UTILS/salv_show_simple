@@ -1,0 +1,33 @@
+form display_fullscreen  using it_data type standard table.
+	DATA:
+	   lr_table TYPE REF TO cl_salv_table,
+	   lr_columns TYPE REF TO cl_salv_columns,
+	   lr_functions TYPE REF TO cl_salv_functions_list.
+	DATA: lr_events TYPE REF TO cl_salv_events_table.
+	
+
+	TRY.
+	    cl_salv_table=>factory(
+	      IMPORTING
+	        r_salv_table = lr_table
+	      CHANGING
+	        t_table      = it_data ).
+	  CATCH cx_salv_msg.                                    "#EC NO_HANDLER
+	ENDTRY.
+	
+
+	"set the columns technical
+	lr_columns = lr_table->get_columns( ).
+	lr_columns->set_optimize( cl_salv_columns=>true ).
+	
+
+	" Functions
+	lr_functions = lr_table->get_functions( ).
+	lr_functions->set_all( cl_salv_functions_list=>true ).
+	
+
+	" display the table
+	lr_table->display( ).
+	
+
+	ENDFORM.                    " DISPLAY_FULLSCREEN
