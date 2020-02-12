@@ -5,18 +5,7 @@ methods EXTEND_MATERIAL_VALTYPE
       !IV_BWTAR type MBEW-BWTAR
       !IX_ZERO_PRICE type ABAP_BOOL default ABAP_FALSE
     returning
-      value(RV_OK) type SYST-SUBRC .
-      
-      
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MRP_FTRACK_WORKER->EXTEND_MATERIAL_VALTYPE
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IV_MATNR                       TYPE        MARA-MATNR
-* | [--->] IV_PLANT                       TYPE        MARC-WERKS
-* | [--->] IV_BWTAR                       TYPE        MBEW-BWTAR
-* | [--->] IX_ZERO_PRICE                  TYPE        ABAP_BOOL (default =ABAP_FALSE)
-* | [<-()] RV_OK                          TYPE        SYST-SUBRC
-* +--------------------------------------------------------------------------------------</SIGNATURE>
+      value(RV_OK) type SYST-SUBRC . 
 
 
 METHOD extend_material_valtype.
