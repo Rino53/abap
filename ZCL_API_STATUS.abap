@@ -4,8 +4,6 @@ class ZCL_API_STATUS definition
   create private .
 
 public section.
-*"* public components of class ZCL_API_STATUS
-*"* do not include other source files here!!!
 
   types:
     TT_JEST TYPE STANDARD TABLE OF jest .
@@ -18,17 +16,17 @@ public section.
   types:
     TT_tj02t TYPE STANDARD TABLE OF tj02t .
 
-  constants C_VKORG_VKTT type AUART value 'VKTT'. "#EC NOTEXT
-  constants C_PROFILE_ZSD1 type JSTO-STSMA value 'ZSD00001'. "#EC NOTEXT
-  constants C_STATUS_E3 type JEST-STAT value 'E0003'. "#EC NOTEXT
-  constants C_STATUS_E4 type JEST-STAT value 'E0004'. "#EC NOTEXT
-  constants C_STATUS_E1 type JEST-STAT value 'E0001'. "#EC NOTEXT
-  constants C_TMP_VBELN type VBELN_VA value 'ZZTMPVBELN'. "#EC NOTEXT
-  constants C_OBTYP_VBK type JSTO-OBTYP value 'VBK'. "#EC NOTEXT
-  constants C_OBTYP_VBP type JSTO-OBTYP value 'VBP'. "#EC NOTEXT
-  constants C_POSNR_INITIAL type POSNR_VA value '000000'. "#EC NOTEXT
+  constants C_VKORG_VKTT type AUART value 'VKTT' ##NO_TEXT.
+  constants C_PROFILE_ZSD1 type JSTO-STSMA value 'ZSD00001' ##NO_TEXT.
+  constants C_STATUS_E3 type JEST-STAT value 'E0003' ##NO_TEXT.
+  constants C_STATUS_E4 type JEST-STAT value 'E0004' ##NO_TEXT.
+  constants C_STATUS_E1 type JEST-STAT value 'E0001' ##NO_TEXT.
+  constants C_TMP_VBELN type VBELN_VA value 'ZZTMPVBELN' ##NO_TEXT.
+  constants C_OBTYP_VBK type JSTO-OBTYP value 'VBK' ##NO_TEXT.
+  constants C_OBTYP_VBP type JSTO-OBTYP value 'VBP' ##NO_TEXT.
+  constants C_POSNR_INITIAL type POSNR_VA value '000000' ##NO_TEXT.
   class-data GT_VBAK_JEST_OLD type TT_JEST .
-
+  
   class-methods TEXT_CONVERSION
     importing
       !IV_OBJNR type JSTO-OBJNR
@@ -53,7 +51,8 @@ public section.
       !IV_TO type J_STATUS optional
     changing
       !CT_JSTAT type TT_JSTAT optional
-      value(RV_OK) type SYSUBRC .
+    returning
+      value(RV_OK) type SYST_SUBRC .
   class-methods GET_BY_MASK
     importing
       !IV_OBJNR type J_OBJNR
@@ -66,7 +65,7 @@ public section.
       !IV_OBJNR type JSTO-OBJNR
       !IV_STATUS type JEST-STAT
     returning
-      value(RV_OK) type SYSUBRC .
+      value(RV_OK) type SYST_SUBRC .
   class-methods READ_MULTI
     importing
       !IV_ONLY_ACTIVE type BOOLE_D default ABAP_TRUE
@@ -84,11 +83,7 @@ public section.
       !CT_JCDS type TT_JCDS optional
       !CT_TJ02T type TT_TJ02T optional .
 protected section.
-*"* protected components of class ZCL_API_STATUS
-*"* do not include other source files here!!!
 private section.
-*"* private components of class ZCL_API_STATUS
-*"* do not include other source files here!!!
 ENDCLASS.
 
 
@@ -101,7 +96,7 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJNR                       TYPE        JSTO-OBJNR
 * | [--->] IV_STATUS                      TYPE        JEST-STAT
-* | [<-()] RV_OK                          TYPE        SYSUBRC
+* | [<-()] RV_OK                          TYPE        SYST_SUBRC
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method CHANGE_EXTERN.
 
@@ -138,21 +133,16 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * | [--->] IV_FROM                        TYPE        J_STATUS(optional)
 * | [--->] IV_TO                          TYPE        J_STATUS(optional)
 * | [<-->] CT_JSTAT                       TYPE        TT_JSTAT(optional)
-* | [<-->] RV_OK                          TYPE        SYSUBRC
+* | [<-()] RV_OK                          TYPE        SYST_SUBRC
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD change_intern.
-    DATA: ls_stat TYPE jstat.
 
     IF iv_from IS NOT INITIAL.
-      ls_stat-stat  = iv_from.
-      ls_stat-inact = abap_true.
-      APPEND ls_stat TO ct_jstat.
+      APPEND VALUE #( stat = iv_from inact = abap_true  ) TO ct_jstat.
     ENDIF.
 
     IF iv_to IS NOT INITIAL.
-      ls_stat-stat  = iv_to.
-      ls_stat-inact = abap_false.
-      APPEND ls_stat TO ct_jstat.
+      APPEND VALUE #( stat = iv_to   inact = abap_false ) TO ct_jstat.
     ENDIF.
 
     CALL FUNCTION 'STATUS_CHANGE_INTERN'
@@ -180,7 +170,6 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 
 
   ENDMETHOD.
-
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STATUS=>CHECK
@@ -230,10 +219,9 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * | [<-()] RS_STATUS                      TYPE        JEST
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method GET_BY_MASK.
-    DATA: ls_status TYPE jest.
     CLEAR rs_status.
-    LOOP AT it_statuses INTO ls_status WHERE objnr = iv_objnr AND
-                                             stat CP iv_mask.
+    LOOP AT it_statuses INTO DATA(ls_status) WHERE objnr = iv_objnr AND
+                                                   stat CP iv_mask.
       rs_status = ls_status.
       exit.
     ENDLOOP.
@@ -290,12 +278,11 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
         jcdo_tab             = ct_jcdo
         jcds_tab             = ct_jcds.
 
-    DATA: _debug TYPE boole_d VALUE abap_false,
-          lt_statuses TYPE tt_jcds.
+    DATA: _debug TYPE boole_d VALUE abap_false.
     IF ( ct_tj02t IS REQUESTED AND ct_jcds[] IS NOT INITIAL ) OR
         _debug = abap_true.
 
-      lt_statuses = ct_jcds[].
+      DATA(lt_statuses) = ct_jcds[].
       SORT lt_statuses BY stat.
       DELETE ADJACENT DUPLICATES FROM lt_statuses COMPARING stat.
 
@@ -311,8 +298,7 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 
 
   ENDMETHOD.
-
-
+  
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STATUS=>TEXT_CONVERSION
 * +-------------------------------------------------------------------------------------------------+
