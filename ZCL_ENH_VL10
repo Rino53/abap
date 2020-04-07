@@ -1,0 +1,296 @@
+class ZCL_SD_ENH_VL10 definition
+  public
+  final
+  create private .
+
+public section.
+
+  types:
+    TT_LIPOV type STANDARD TABLE OF LIPOV .
+  types:
+    tr_name_zm TYPE RANGE OF lipov-name_zm .
+  types:
+    tr_pernr_zm TYPE RANGE OF lipov-pernr_zm .
+  types:
+    tr_pernr_lo TYPE RANGE OF lipov-pernr_lo .
+
+  constants C_SELOPT_PERZM_NAME type FIELDNAME value 'ZS_PERZM' ##NO_TEXT.
+  constants C_SELOPT_PERLO_NAME type FIELDNAME value 'ZS_PERLO' ##NO_TEXT.
+  constants C_SELOPT_NM1ZM_NAME type FIELDNAME value 'ZS_NM1ZM' ##NO_TEXT.
+  constants C_POSNR_INITIAL type POSNR value '000000' ##NO_TEXT.
+  class-data MR_PERZM type TR_PERNR_ZM read-only .
+  class-data MR_PERLO type TR_PERNR_LO read-only .
+
+  class-methods SSCR_SET_SELOPT
+    importing
+      !IR_NM1ZM type TR_NAME_ZM optional
+      !IR_PERZM type TR_PERNR_ZM optional
+      !IR_PERLO type TR_PERNR_LO optional .
+  class-methods IS_ACTIVE
+    importing
+      !I_REPID type SY-REPID default SY-REPID
+    returning
+      value(RV_STATE) type Z_SSA_U_EXIT-AKTIV_KZ .
+  class-methods GET_PERNR_NAME_BY_VBELN
+    importing
+      !IV_VBELN type VBAK-VBELN
+      !IV_POSNR type VBAP-POSNR optional
+      !IV_PARVW type VBPA-PARVW default 'ZM'
+    exporting
+      !EV_NAME type CLIKE
+      !EV_PERNR type VBPA-PERNR .
+  class-methods SSCR_MODIFY_SELOPT
+    changing
+      !CS_SELOPT_PERZM type RSSELINT optional
+      !CS_SELOPT_PERLO type RSSELINT optional
+      !CS_SELOPT_NM1ZM type RSSELINT optional
+      !CS_TITLE type CLIKE optional .
+  class-methods SSCR_MODIFY_SCREEN
+    changing
+      !CS_SCREEN type SCREEN
+    returning
+      value(RV_CHANGED) type ABAP_BOOL .
+  class-methods FILL_VL10_ITEM
+    changing
+      !CS_POSTAB type SHP_VL10_ITEM .
+protected section.
+private section.
+
+  class-data MR_NM1ZM type TR_NAME_ZM .
+  class-data MS_ACTIVATION type Z_SSA_U_EXIT .
+ENDCLASS.
+
+
+
+CLASS ZCL_SD_ENH_VL10 IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_SD_ENH_VL10=>FILL_VL10_ITEM
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CS_POSTAB                      TYPE        SHP_VL10_ITEM
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD fill_vl10_item.
+
+    get_pernr_name_by_vbeln(  EXPORTING iv_vbeln = cs_postab-vbelv
+                                        iv_parvw = 'ZM'
+                              IMPORTING ev_pernr = cs_postab-pernr_zm
+                                        ev_name  = cs_postab-name_zm ).
+
+    get_pernr_name_by_vbeln(  EXPORTING iv_vbeln = cs_postab-vbelv
+                                        iv_parvw = 'LO'
+                              IMPORTING ev_pernr = cs_postab-pernr_lo
+                                        ev_name  = cs_postab-name_lo ).
+    DATA: ls_marc TYPE marc.
+    CALL FUNCTION 'MARC_SINGLE_READ'
+      EXPORTING
+        matnr  = cs_postab-matnr
+        werks  = cs_postab-werks
+      IMPORTING
+        wmarc  = ls_marc
+      EXCEPTIONS
+        OTHERS = 5.
+    IF sy-subrc = 0.
+      cs_postab-dispo      = ls_marc-dispo.
+      cs_postab-ekgrp_marc = ls_marc-ekgrp.
+    ENDIF.
+
+    IF cs_postab-vbelv IS NOT INITIAL AND
+       cs_postab-posnv IS NOT INITIAL.
+
+      SELECT SINGLE ekgrp
+        FROM eban
+        INTO cs_postab-ekgrp_eban
+        WHERE ebeln = cs_postab-vbelv
+          AND ebeln = cs_postab-posnv.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_SD_ENH_VL10=>GET_PERNR_NAME_BY_VBELN
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_VBELN                       TYPE        VBAK-VBELN
+* | [--->] IV_POSNR                       TYPE        VBAP-POSNR(optional)
+* | [--->] IV_PARVW                       TYPE        VBPA-PARVW (default ='ZM')
+* | [<---] EV_NAME                        TYPE        CLIKE
+* | [<---] EV_PERNR                       TYPE        VBPA-PERNR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD GET_PERNR_NAME_BY_VBELN.
+
+    DATA: ls_vbpa  TYPE vbpa,
+          ls_vbadr TYPE vbadr,
+          lv_posnr TYPE vbap-posnr.
+
+    IF iv_posnr IS INITIAL.
+      lv_posnr = c_posnr_initial.
+    ELSE.
+      lv_posnr = iv_posnr.
+    ENDIF.
+
+    CALL FUNCTION 'SD_VBPA_SINGLE_READ'
+      EXPORTING
+        i_vbeln          = iv_vbeln
+        i_posnr          = lv_posnr
+        i_parvw          = iv_parvw
+      IMPORTING
+        e_vbpa           = ls_vbpa
+      EXCEPTIONS
+        record_not_found = 1
+        OTHERS           = 2.
+    IF sy-subrc = 0 AND ls_vbpa-pernr IS NOT INITIAL.
+      ev_pernr = ls_vbpa-pernr.
+      CALL FUNCTION 'VIEW_VBADR'
+        EXPORTING
+          input   = ls_vbpa
+        IMPORTING
+          adresse = ls_vbadr
+        EXCEPTIONS
+          error   = 1
+          OTHERS  = 2.
+      IF sy-subrc = 0.
+        WRITE ls_vbadr-name_list TO ev_name.
+      ENDIF.
+    ENDIF.
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_SD_ENH_VL10=>IS_ACTIVE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_REPID                        TYPE        SY-REPID (default =SY-REPID)
+* | [<-()] RV_STATE                       TYPE        Z_SSA_U_EXIT-AKTIV_KZ
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD is_active.
+    IF ms_activation IS INITIAL.
+      ms_activation-obj_name = 'RV50QA'.
+      SELECT SINGLE *
+        FROM Z_ssa_u_exit
+        INTO ms_activation
+        WHERE system_id  = sy-sysid
+          AND obj_name   = ms_activation-obj_name
+          AND text_id    = i_repid.
+    ENDIF.
+    rv_state = ms_activation-aktiv_kz.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_SD_ENH_VL10=>SSCR_MODIFY_SCREEN
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CS_SCREEN                      TYPE        SCREEN
+* | [<-()] RV_CHANGED                     TYPE        ABAP_BOOL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD sscr_modify_screen.
+
+    IF
+*       cs_screen-name+0(8) = c_selopt_nm1zm_name OR " UPD: removed from screen
+*       cs_screen-name+2(8) = c_selopt_nm1zm_name OR
+       cs_screen-name+0(8) = c_selopt_perlo_name OR
+       cs_screen-name+2(8) = c_selopt_perlo_name OR
+       cs_screen-name+0(8) = c_selopt_perzm_name OR
+       cs_screen-name+2(8) = c_selopt_perzm_name.
+
+      DATA(screen_old) = cs_screen.
+      cs_screen-active    = COND #( WHEN is_active( sy-cprog ) THEN 1 ELSE 0 ).
+      cs_screen-invisible = COND #( WHEN is_active( sy-cprog ) THEN 0 ELSE 1 ).
+
+      IF screen_old <> cs_screen.
+        rv_changed = abap_true.
+      ENDIF.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_SD_ENH_VL10=>SSCR_MODIFY_SELOPT
+* +-------------------------------------------------------------------------------------------------+
+* | [<-->] CS_SELOPT_PERZM                TYPE        RSSELINT(optional)
+* | [<-->] CS_SELOPT_PERLO                TYPE        RSSELINT(optional)
+* | [<-->] CS_SELOPT_NM1ZM                TYPE        RSSELINT(optional)
+* | [<-->] CS_TITLE                       TYPE        CLIKE(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD sscr_modify_selopt.
+
+
+    DATA: l_ddtext       TYPE as4text.
+
+    MOVE 'Add-On Selection parameters' TO cs_title.
+
+    IF cs_selopt_perzm-text = c_selopt_perzm_name.
+      CLEAR l_ddtext.
+      CALL METHOD cl_value_requ_simple_mnt_brf=>get_table_field_text
+        EXPORTING
+          iv_table       = 'LIPOV'
+          iv_field       = 'PERNR_ZM'
+        IMPORTING
+          ev_field_short = l_ddtext.
+      IF l_ddtext IS NOT INITIAL.
+        MOVE l_ddtext        TO cs_selopt_perzm-text.
+      ELSE.
+        MOVE 'Personal number (ZM)'     TO cs_selopt_perzm-text.
+      ENDIF.
+
+    ENDIF.
+
+    IF cs_selopt_nm1zm-text = c_selopt_nm1zm_name.
+      CLEAR l_ddtext.
+      CALL METHOD cl_value_requ_simple_mnt_brf=>get_table_field_text
+        EXPORTING
+          iv_table       = 'LIPOV'
+          iv_field       = 'NAME_ZM'
+        IMPORTING
+          ev_field_short = l_ddtext.
+      IF l_ddtext IS NOT INITIAL.
+        MOVE l_ddtext        TO cs_selopt_nm1zm-text.
+      ELSE.
+        MOVE 'Name (ZM)'     TO cs_selopt_nm1zm-text.
+      ENDIF.
+
+    ENDIF.
+
+    IF cs_selopt_perlo-text = c_selopt_perlo_name.
+      CLEAR l_ddtext.
+      CALL METHOD cl_value_requ_simple_mnt_brf=>get_table_field_text
+        EXPORTING
+          iv_table       = 'LIPOV'
+          iv_field       = 'PERNR_LO'
+        IMPORTING
+          ev_field_short = l_ddtext.
+      IF l_ddtext IS NOT INITIAL.
+        MOVE l_ddtext        TO cs_selopt_perlo-text.
+      ELSE.
+        MOVE 'Personal number (LO)'     TO cs_selopt_perlo-text.
+      ENDIF.
+
+    ENDIF.
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_SD_ENH_VL10=>SSCR_SET_SELOPT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IR_NM1ZM                       TYPE        TR_NAME_ZM(optional)
+* | [--->] IR_PERZM                       TYPE        TR_PERNR_ZM(optional)
+* | [--->] IR_PERLO                       TYPE        TR_PERNR_LO(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD sscr_set_selopt.
+
+    IF is_active( sy-cprog ).
+      mr_nm1zm[] = ir_nm1zm[].
+      mr_perzm[] = ir_perzm[].
+      mr_perlo[] = ir_perlo[].
+    ENDIF.
+
+  ENDMETHOD.
+ENDCLASS.
