@@ -1,5 +1,6 @@
 class ZCL_API_STATUS definition
   public
+  inheriting from ZCL_BASE
   final
   create private .
 
@@ -16,6 +17,21 @@ public section.
   types:
     TT_tj02t TYPE STANDARD TABLE OF tj02t .
 
+  constants:
+    BEGIN OF gc_istat,
+    eroef TYPE jest-stat VALUE 'I0001',
+    frei  TYPE jest-stat VALUE 'I0002',
+    rueck TYPE jest-stat VALUE 'I0009',
+    glft  TYPE j_istat   VALUE 'I0012',
+    loekz TYPE jest-stat VALUE 'I0013',
+
+    del_flag TYPE jest-stat VALUE 'I0076',
+    teco     TYPE jest-stat VALUE 'I0045',
+  END OF gc_istat .
+  constants:
+    BEGIN OF gc_estat,
+    dit   TYPE j_istat   VALUE 'E0081',
+  END OF gc_estat .
   constants C_VKORG_VKTT type AUART value 'VKTT' ##NO_TEXT.
   constants C_PROFILE_ZSD1 type JSTO-STSMA value 'ZSD00001' ##NO_TEXT.
   constants C_STATUS_E3 type JEST-STAT value 'E0003' ##NO_TEXT.
@@ -26,21 +42,13 @@ public section.
   constants C_OBTYP_VBP type JSTO-OBTYP value 'VBP' ##NO_TEXT.
   constants C_POSNR_INITIAL type POSNR_VA value '000000' ##NO_TEXT.
   class-data GT_VBAK_JEST_OLD type TT_JEST .
-  
-  class-methods TEXT_CONVERSION
-    importing
-      !IV_OBJNR type JSTO-OBJNR
-      !IV_TXT04 type TJ02T-TXT04
-      !IV_LANG type SY-LANGU default SY-LANGU
-      !IV_MODE type CHAR1 optional
-      !IV_STSMA type JSTO-STSMA optional
-    returning
-      value(RV_STATUS) type JEST-STAT .
+
+  class-methods BUFFER_REFRESH .
   class-methods CHECK
     importing
       !IV_BYPASS_BUFFER type BOOLE_D default ABAP_FALSE
       !IV_OBJNR type JEST-OBJNR
-      !IV_STATUS type JEST-STAT optional
+      !IV_STATUS type JEST-STAT
       !IV_TXT04 type J_TXT04 optional
     returning
       value(RV_OK) type SUBRC .
@@ -82,6 +90,15 @@ public section.
       !CT_JCDO type TT_JCDO optional
       !CT_JCDS type TT_JCDS optional
       !CT_TJ02T type TT_TJ02T optional .
+  class-methods TEXT_CONVERSION
+    importing
+      !IV_OBJNR type JSTO-OBJNR
+      !IV_TXT04 type TJ02T-TXT04
+      !IV_LANG type SY-LANGU default SY-LANGU
+      !IV_MODE type CHAR1 optional
+      !IV_STSMA type JSTO-STSMA optional
+    returning
+      value(RV_STATUS) type JEST-STAT .
 protected section.
 private section.
 ENDCLASS.
@@ -89,6 +106,17 @@ ENDCLASS.
 
 
 CLASS ZCL_API_STATUS IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_STATUS=>BUFFER_REFRESH
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method BUFFER_REFRESH.
+
+    CALL FUNCTION 'STATUS_BUFFER_REFRESH'.
+
+  endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -171,16 +199,17 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 
   ENDMETHOD.
 
+
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STATUS=>CHECK
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_BYPASS_BUFFER               TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [--->] IV_OBJNR                       TYPE        JEST-OBJNR
-* | [--->] IV_STATUS                      TYPE        JEST-STAT(optional)
+* | [--->] IV_STATUS                      TYPE        JEST-STAT
 * | [--->] IV_TXT04                       TYPE        J_TXT04(optional)
 * | [<-()] RV_OK                          TYPE        SUBRC
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD check.
+  method CHECK.
     DATA: l_status TYPE jest-stat.
 
     CLEAR rv_ok.
@@ -207,7 +236,7 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
       rv_ok = sy-subrc.
     ENDIF.
 
-  ENDMETHOD.
+  endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -293,12 +322,20 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
         WHERE istat = lt_statuses-stat
           AND spras = sy-langu.
 
+      SELECT *
+        FROM tj30t
+        INTO TABLE @DATA(lt_tj30t)
+        FOR ALL ENTRIES IN @lt_statuses[]
+        WHERE estat = @lt_statuses-stat
+          AND spras = @sy-langu.
+
     ENDIF.
 
 
 
   ENDMETHOD.
-  
+
+
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STATUS=>TEXT_CONVERSION
 * +-------------------------------------------------------------------------------------------------+
