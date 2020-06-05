@@ -4,6 +4,7 @@ class ZCL_API_LOG definition
 
 public section.
   type-pools ABAP .
+  " CL_RSDME_ERROR - usefull
 
   constants:
     BEGIN OF mc_sbal_profile,
