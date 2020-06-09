@@ -4,9 +4,9 @@ class ZCL_API_LOG definition
 
 public section.
   type-pools ABAP .
-  " CL_RSDME_ERROR - usefull
 
   constants:
+  " CL_RSDME_ERROR - usefull
     BEGIN OF mc_sbal_profile,
       single TYPE char1 VALUE '1',                          "#EC NOTEXT
       detlevel TYPE char1 VALUE '2',                          "#EC NOTEXT
@@ -44,7 +44,7 @@ public section.
     returning
       value(RO_LOG) type ref to ZCL_API_LOG .
 *      !IO_EXCEPTION type ref to ZCX_BC_COMMON optional
-   methods ADD_MESSAGE
+  methods ADD_MESSAGE
     importing
       !IS_BAL_MSG type BAL_S_MSG optional
       !IS_SY type SYST default SY
@@ -93,6 +93,17 @@ public section.
       !IV_INSTANCE_TYPE type CLIKE optional
     returning
       value(RO_LOG) type ref to ZCL_API_LOG .
+  methods GET_MESSAGE
+    importing
+      !IV_MSGTY type SYMSGTY optional
+      !IV_MSGID type SYMSGID optional
+      !IV_MSGNO type SYMSGNO optional
+      !IV_MSGV1 type SYMSGV optional
+      !IV_MSGV2 type SYMSGV optional
+      !IV_MSGV3 type SYMSGV optional
+      !IV_MSGV4 type SYMSGV optional
+    returning
+      value(RS_MESSAGE) type BAL_S_MSG .
   methods GET_MESSAGES
     returning
       value(EX_T_MSG) type BAL_T_MSG .
@@ -408,7 +419,6 @@ ENDMETHOD.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD clear.
 
-* Удаляем все сообщения из лога
   CALL FUNCTION 'BAL_LOG_MSG_DELETE_ALL'
     EXPORTING
       i_log_handle  = mv_handle
@@ -432,6 +442,8 @@ ENDMETHOD.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD CONSTRUCTOR.
 
+  super->constructor( ).
+
   mv_handle = iv_handler.
 
   IF iv_timestamp IS NOT INITIAL.
@@ -451,18 +463,16 @@ ENDMETHOD.
 * | [--->] IV_EXTNUMBER                   TYPE        CLIKE(optional)
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1(optional)
+* | [--->] IV_USE_GRID                    TYPE        ABAP_BOOL(optional)
 * | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD create_log.
 
   CLEAR ro_log.
 
-* Создаем программный лог для указанного объекта подобъекта
-* ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ
   DATA lv_log_header TYPE bal_s_log.
   DATA lv_handler    TYPE balloghndl.
 
-* ПРОГРАММА
   lv_log_header-object    = iv_object.
   lv_log_header-subobject = iv_subobject.
   lv_log_header-extnumber = iv_extnumber.
@@ -505,6 +515,37 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_LOG->GET_MESSAGE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MSGTY                       TYPE        SYMSGTY(optional)
+* | [--->] IV_MSGID                       TYPE        SYMSGID(optional)
+* | [--->] IV_MSGNO                       TYPE        SYMSGNO(optional)
+* | [--->] IV_MSGV1                       TYPE        SYMSGV(optional)
+* | [--->] IV_MSGV2                       TYPE        SYMSGV(optional)
+* | [--->] IV_MSGV3                       TYPE        SYMSGV(optional)
+* | [--->] IV_MSGV4                       TYPE        SYMSGV(optional)
+* | [<-()] RS_MESSAGE                     TYPE        BAL_S_MSG
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD get_message.
+
+  CLEAR rs_message.
+
+  DATA(lt_allmsg) = get_messages( ).
+
+  CHECK lt_allmsg[] IS NOT INITIAL.
+
+  READ TABLE lt_allmsg[] INTO rs_message WITH KEY msgty = iv_msgty
+                                                  msgid = iv_msgid
+                                                  msgno = iv_msgno
+                                                  msgv1 = iv_msgv1
+                                                  msgv2 = iv_msgv2
+                                                  msgv3 = iv_msgv3
+                                                  msgv4 = iv_msgv4.
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_API_LOG->GET_MESSAGES
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] EX_T_MSG                       TYPE        BAL_T_MSG
@@ -525,7 +566,6 @@ METHOD GET_MESSAGES.
   t_handle-low        = mv_handle.
   APPEND t_handle TO t_log_filter-log_handle.
 
-*   находим сообщения текущего лога
   REFRESH lt_msg_handle.
   CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
     EXPORTING
@@ -539,7 +579,6 @@ METHOD GET_MESSAGES.
    check sy-subrc = 0.
 
   REFRESH EX_T_MSG  .
-*   читаем все найденные сообщения
   LOOP AT lt_msg_handle INTO t_msg_handle.
     CALL FUNCTION 'BAL_LOG_MSG_READ'
       EXPORTING
@@ -605,6 +644,7 @@ METHOD HAS_WARNINGS.
   CLEAR re_value.
 
 ENDMETHOD.
+
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_LOG=>INIT_POPUP_LOG
@@ -766,7 +806,6 @@ METHOD MESSAGE_COUNT.
        .
 
 
-* установка параметров вызова
   REFRESH l_it_handles.
   APPEND mv_handle TO l_it_handles.
 
@@ -777,7 +816,7 @@ METHOD MESSAGE_COUNT.
     ls_msg_type-low    = im_msg_type.
     APPEND ls_msg_type TO ls_msg_filter-msgty.
   ENDIF.
-* вызов стандартного ФМ (подсчет числа сообщений)
+
   CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
     EXPORTING
       i_t_log_handle = l_it_handles
