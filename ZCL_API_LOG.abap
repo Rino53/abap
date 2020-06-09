@@ -527,6 +527,13 @@ ENDMETHOD.
 * | [<-()] RS_MESSAGE                     TYPE        BAL_S_MSG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD get_message.
+ 
+  DEFINE _append_to_range.
+    IF &1 IS NOT INITIAL.
+      APPEND VALUE #( sign = 'I' option = 'EQ' low = &1 ) TO &2.
+    ENDIF.
+  END-OF-DEFINITION.
+
   DATA: lr_msgty TYPE RANGE OF symsgty,
         lr_msgid TYPE RANGE OF symsgid,
         lr_msgno TYPE RANGE OF symsgno,
@@ -541,13 +548,14 @@ METHOD get_message.
 
   CHECK lt_allmsg[] IS NOT INITIAL.
 
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgty ) TO lr_msgty[].
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgid ) TO lr_msgid[].
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgno ) TO lr_msgno[].
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv1 ) TO lr_msgv1[].
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv2 ) TO lr_msgv2[].
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv3 ) TO lr_msgv3[].
-  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv4 ) TO lr_msgv4[].
+  _append_to_range:
+    iv_msgty lr_msgty[],
+    iv_msgid lr_msgid[],
+    iv_msgno lr_msgno[],
+    iv_msgv1 lr_msgv1[],
+    iv_msgv2 lr_msgv2[],
+    iv_msgv3 lr_msgv3[],
+    iv_msgv4 lr_msgv4[].
 
   LOOP AT lt_allmsg INTO rs_message WHERE msgty IN lr_msgty[]
                                       AND msgid IN lr_msgid[]
