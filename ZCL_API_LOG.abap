@@ -527,6 +527,13 @@ ENDMETHOD.
 * | [<-()] RS_MESSAGE                     TYPE        BAL_S_MSG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD get_message.
+  DATA: lr_msgty TYPE RANGE OF symsgty,
+        lr_msgid TYPE RANGE OF symsgid,
+        lr_msgno TYPE RANGE OF symsgno,
+        lr_msgv1 TYPE RANGE OF symsgv,
+        lr_msgv2 TYPE RANGE OF symsgv,
+        lr_msgv3 TYPE RANGE OF symsgv,
+        lr_msgv4 TYPE RANGE OF symsgv.
 
   CLEAR rs_message.
 
@@ -534,13 +541,23 @@ METHOD get_message.
 
   CHECK lt_allmsg[] IS NOT INITIAL.
 
-  READ TABLE lt_allmsg[] INTO rs_message WITH KEY msgty = iv_msgty
-                                                  msgid = iv_msgid
-                                                  msgno = iv_msgno
-                                                  msgv1 = iv_msgv1
-                                                  msgv2 = iv_msgv2
-                                                  msgv3 = iv_msgv3
-                                                  msgv4 = iv_msgv4.
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgty ) TO lr_msgty[].
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgid ) TO lr_msgid[].
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgno ) TO lr_msgno[].
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv1 ) TO lr_msgv1[].
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv2 ) TO lr_msgv2[].
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv3 ) TO lr_msgv3[].
+  APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_msgv4 ) TO lr_msgv4[].
+
+  LOOP AT lt_allmsg INTO rs_message WHERE msgty IN lr_msgty[]
+                                      AND msgid IN lr_msgid[]
+                                      AND msgno IN lr_msgno[]
+                                      AND msgv1 IN lr_msgv1[]
+                                      AND msgv2 IN lr_msgv2[]
+                                      AND msgv3 IN lr_msgv3[]
+                                      AND msgv4 IN lr_msgv4[].
+    EXIT. " Return first hit
+  ENDLOOP.
 
 ENDMETHOD.
 
