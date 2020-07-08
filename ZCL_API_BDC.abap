@@ -47,6 +47,18 @@ public section.
       !BAPIRET type BAPIRET2 optional
       !MSGCOLL_T type TAB_BDCMSGCOLL optional
       !MSGCOLL type BDCMSGCOLL optional .
+  class-methods GET_TEXT
+    importing
+      !IV_OBJNR type JEST-OBJNR optional
+      !IV_SPRAS type SY-LANGU default SY-LANGU
+      !IV_BYPASS_BUFFER type FLAG default ABAP_FALSE
+      !IV_AUFNR type AUFK-AUFNR optional
+    exporting
+      !EV_STAT_EXIST type FLAG
+      !EV_STSMA type JSTO-STSMA
+      !EV_SYSTEM_TEXT type BSVX-STTXT
+      !EV_USER_TEXT type BSVX-STTXT
+      !EV_STONR type TJ30-STONR .
 protected section.
 *"* protected components of class ZCL_API_BDC
 *"* do not include other source files here!!!
@@ -307,4 +319,54 @@ method SUBSCR.
   field( fnam = 'BDC_SUBSCR' fval = par ).
 
 endmethod.
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method /SIE/AD_ZMS0_STATUS=>GET_TEXT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_OBJNR                       TYPE        JEST-OBJNR(optional)
+* | [--->] IV_SPRAS                       TYPE        SY-LANGU (default =SY-LANGU)
+* | [--->] IV_BYPASS_BUFFER               TYPE        FLAG (default =ABAP_FALSE)
+* | [--->] IV_AUFNR                       TYPE        AUFK-AUFNR(optional)
+* | [<---] EV_STAT_EXIST                  TYPE        FLAG
+* | [<---] EV_STSMA                       TYPE        JSTO-STSMA
+* | [<---] EV_SYSTEM_TEXT                 TYPE        BSVX-STTXT
+* | [<---] EV_USER_TEXT                   TYPE        BSVX-STTXT
+* | [<---] EV_STONR                       TYPE        TJ30-STONR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD GET_TEXT.
+    DATA(lv_objnr) = iv_objnr.
+
+    IF lv_objnr IS INITIAL.
+
+      IF iv_aufnr IS NOT INITIAL.
+        SELECT SINGLE objnr
+          FROM aufk
+          INTO lv_objnr
+          WHERE aufnr = iv_aufnr.
+      ENDIF.
+
+    ENDIF.
+
+    CHECK lv_objnr IS NOT INITIAL.
+
+    CALL FUNCTION 'STATUS_TEXT_EDIT'
+      EXPORTING
+*       FLG_USER_STAT     = ' '
+        objnr             = lv_objnr
+*       ONLY_ACTIVE       = 'X'
+        spras             = iv_spras
+        bypass_buffer     = iv_bypass_buffer
+      IMPORTING
+        anw_stat_existing = ev_stat_exist
+        e_stsma           = ev_stsma
+        line              = ev_system_text
+        user_line         = ev_user_text
+        stonr             = ev_stonr
+      EXCEPTIONS
+        OTHERS            = 2.
+    IF sy-subrc <> 0.
+      CLEAR: ev_system_text, ev_user_text.
+    ENDIF.
+
+  ENDMETHOD.
 ENDCLASS.
