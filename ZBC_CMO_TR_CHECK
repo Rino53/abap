@@ -1,0 +1,233 @@
+*&---------------------------------------------------------------------*
+*& Report ZBC_CMO_TR_CHECK
+*&---------------------------------------------------------------------*
+*& Simple report to check TRs before transportations with report /SDF/TRCHECK
+*&---------------------------------------------------------------------*
+REPORT zbc_cmo_tr_check.
+
+TABLES: e070.
+
+TYPES: BEGIN OF ts_hist.
+         INCLUDE TYPE e070.
+         TYPES: as4text TYPE e07t-as4text.
+         INCLUDE TYPE /sdf/hist_run_db.
+       TYPES: END OF ts_hist.
+
+TYPES: tt_hist TYPE STANDARD TABLE OF ts_hist.
+
+CLASS lcl_event_handler DEFINITION DEFERRED.
+
+DATA: go_salv    TYPE REF TO cl_salv_table,
+      gt_history TYPE tt_hist.
+
+
+SELECT-OPTIONS:
+ p_ori_tr FOR e070-trkorr NO INTERVALS OBLIGATORY.
+
+SELECTION-SCREEN SKIP.
+
+PARAMETERS:
+  p_source TYPE rfcdes-rfcdest DEFAULT 'NONE' OBLIGATORY,
+  p_target TYPE rfcdes-rfcdest DEFAULT 'PROD01C100' OBLIGATORY,
+  p_datum  TYPE sy-datum DEFAULT sy-datum OBLIGATORY,
+  p_force AS CHECKBOX.
+
+
+END-OF-SELECTION.
+  PERFORM main.
+
+
+FORM main.
+
+
+  IF p_force IS INITIAL.
+    PERFORM get_check_results CHANGING gt_history.
+  ENDIF.
+
+  LOOP AT gt_history INTO DATA(ls_hist) WHERE notice IS NOT INITIAL.
+    PERFORM run_check USING ls_hist-notice 'N'.
+  ENDLOOP.
+
+  PERFORM get_check_results CHANGING gt_history.
+
+  PERFORM show_result USING gt_history.
+
+
+ENDFORM.
+
+
+
+
+FORM get_check_results CHANGING rt_trlist TYPE tt_hist.
+
+  CLEAR: rt_trlist[].
+
+  CHECK: p_ori_tr[] IS NOT INITIAL.
+
+  " TODO: buffer e070 and e07t?
+  SELECT *
+    FROM e070
+    INTO TABLE @DATA(lt_e070)
+    WHERE trkorr IN @p_ori_tr[].
+
+  SELECT *
+    FROM e07t
+    INTO TABLE @DATA(lt_e07t)
+    WHERE trkorr IN @p_ori_tr[].
+
+  LOOP AT lt_e070 INTO DATA(ls_e070) WHERE trkorr IS NOT INITIAL.
+    APPEND INITIAL LINE TO rt_trlist ASSIGNING FIELD-SYMBOL(<ls_trlist>).
+    MOVE-CORRESPONDING ls_e070 TO <ls_trlist>.
+    <ls_trlist>-notice  = ls_e070-trkorr.
+    <ls_trlist>-as4text = VALUE #( lt_e07t[ trkorr = ls_e070-trkorr ]-as4text OPTIONAL ).
+  ENDLOOP.
+
+
+  IF rt_trlist[] IS NOT INITIAL.
+
+    SELECT *
+      FROM /sdf/hist_run_db
+      INTO TABLE @DATA(lt_hist)
+      FOR ALL ENTRIES IN @rt_trlist
+      WHERE run_datum = @p_datum
+        AND run_dest1 = @p_source
+        AND run_dest2 = @p_target
+        AND notice    = @rt_trlist-notice.
+
+    IF lt_hist[] IS NOT INITIAL.
+
+      SORT lt_hist BY notice ASCENDING run_time DESCENDING.
+      DELETE ADJACENT DUPLICATES FROM lt_hist COMPARING notice.
+
+      LOOP AT rt_trlist ASSIGNING <ls_trlist>.
+        READ TABLE lt_hist INTO DATA(ls_hist) WITH KEY notice = <ls_trlist>-notice.
+        IF sy-subrc = 0.
+          MOVE-CORRESPONDING ls_hist TO <ls_trlist>.
+          CLEAR <ls_trlist>-notice. " This flag means that entry found in history.
+        ENDIF.
+      ENDLOOP.
+
+    ENDIF.
+
+  ENDIF.
+
+  LOOP AT p_ori_tr INTO DATA(ls_tr) WHERE low IS NOT INITIAL.
+    READ TABLE lt_e070 TRANSPORTING NO FIELDS WITH KEY trkorr = ls_tr-low.
+    IF sy-subrc <> 0.
+      APPEND INITIAL LINE TO rt_trlist ASSIGNING <ls_trlist>.
+      <ls_trlist>-trkorr    = ls_tr-low.
+      <ls_trlist>-run_dest1 = 'DELETED'.
+      <ls_trlist>-as4text   = 'DELETED'.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.
+
+
+FORM run_check USING iv_tr TYPE any
+                     iv_dismode TYPE ctu_params-dismode.
+
+  DATA(lv_transport) = CONV e070-trkorr( iv_tr ).
+
+  DATA(lo_bdc) = NEW zcl_md_bdc( '/SDF/TRCHECK' ).
+  lo_bdc->ms_options-dismode = iv_dismode. " Background = 'N'
+  lo_bdc->ms_options-racommit = abap_true.
+
+  lo_bdc->screen( '/SDF/CMO_TR_CHECK|1000|=ONLI' ).
+  lo_bdc->field( iv_fnam = 'P_SOURCE' iv_fval = p_source ).
+  lo_bdc->field( iv_fnam = 'P_TARGET' iv_fval = p_target ).
+  lo_bdc->field( iv_fnam = 'R_PRJ_CO' iv_fval = abap_true ).
+  lo_bdc->field( iv_fnam = 'P_ORI_TR-LOW' iv_fval = lv_transport ).
+
+  lo_bdc->field( iv_fnam = 'P_CRSREF' iv_fval = abap_true ).
+  lo_bdc->field( iv_fnam = 'P_DGP' iv_fval = abap_true ).
+  lo_bdc->field( iv_fnam = 'P_SWCOMP' iv_fval = abap_true ).
+  lo_bdc->field( iv_fnam = 'P_IMPTIM' iv_fval = abap_true ).
+  lo_bdc->field( iv_fnam = 'P_OICHCK' iv_fval = abap_true ).
+
+  lo_bdc->field( iv_fnam = 'P_CHKBOX' iv_fval = abap_true ).
+  lo_bdc->field( iv_fnam = 'P_DETAIL' iv_fval = lv_transport ).
+
+  lo_bdc->call( ).
+*    mo_log->add_message( it_batch = lo_bdc->mt_msgcoll[] ).
+
+ENDFORM.
+
+
+
+CLASS lcl_event_handler DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      on_double_click
+          FOR EVENT double_click OF cl_salv_events_table
+        IMPORTING
+          row
+          column  .
+ENDCLASS.
+
+CLASS lcl_event_handler IMPLEMENTATION.
+  METHOD on_double_click.
+    CHECK: gt_history[] IS NOT INITIAL.
+    READ TABLE gt_history INTO DATA(ls_alv) INDEX row.
+    CASE column.
+      WHEN 'TRKORR'.
+        SUBMIT rddit077 WITH trkorr = ls_alv-trkorr AND RETURN. " Or use FM TR_PRESENT_REQUEST
+      WHEN OTHERS.
+        IF ls_alv-trkorr IS NOT INITIAL.
+          PERFORM run_check USING ls_alv-trkorr 'E'.
+        ENDIF.
+    ENDCASE.
+  ENDMETHOD.
+ENDCLASS.
+
+FORM show_result USING it_alv_tab TYPE tt_hist.
+
+
+  TRY.
+      cl_salv_table=>factory(
+        IMPORTING
+          r_salv_table = go_salv
+        CHANGING
+          t_table      = it_alv_tab ).
+    CATCH cx_salv_msg.                                  "#EC NO_HANDLER
+  ENDTRY.
+
+  DATA(lo_selections) = go_salv->get_selections( ).
+  lo_selections->set_selection_mode( if_salv_c_selection_mode=>none ).
+
+
+
+  DATA(lo_funct) = go_salv->get_functions( ).
+  lo_funct->set_all( abap_true ).
+*  lo_funct->set_default( abap_true ).
+
+  DATA(lo_layout) = go_salv->get_layout( ).
+  lo_layout->set_key( VALUE #( report = sy-repid handle = 'HEAD' ) ).
+  lo_layout->set_default( abap_true ).
+  lo_layout->set_save_restriction( if_salv_c_layout=>restrict_none ).
+
+  DATA(lo_columns) = go_salv->get_columns( ).
+  lo_columns->set_optimize( ).
+  LOOP AT lo_columns->get( ) REFERENCE INTO DATA(lr_column).
+    DATA(lo_salv_column) = CAST cl_salv_column_table( lr_column->r_column ).
+
+    lo_salv_column->set_fixed_header_text( 'M' ).
+
+    IF lo_salv_column->get_medium_text( ) IS INITIAL.
+      lo_salv_column->set_medium_text( CONV #( lr_column->columnname ) ).
+    ENDIF.
+
+*        CASE lr_column->columnname.
+*          WHEN 'RUECK'. lo_salv_column->set_medium_text( CONV #( text-ruk ) ).
+*        ENDCASE.
+  ENDLOOP.
+
+
+  DATA(lo_events) = go_salv->get_event( ).
+  DATA(lo_event_handler) = NEW lcl_event_handler( ).
+  SET HANDLER lo_event_handler->on_double_click FOR lo_events.
+
+  " display the table
+  go_salv->display( ).
+
+ENDFORM.
