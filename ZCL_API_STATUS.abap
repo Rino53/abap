@@ -1,6 +1,5 @@
 class ZCL_API_STATUS definition
   public
-  inheriting from ZCL_BASE
   final
   create private .
 
@@ -48,8 +47,9 @@ public section.
     importing
       !IV_BYPASS_BUFFER type BOOLE_D default ABAP_FALSE
       !IV_OBJNR type JEST-OBJNR
-      !IV_STATUS type JEST-STAT
+      !IV_STATUS type JEST-STAT optional
       !IV_TXT04 type J_TXT04 optional
+      !IV_LANG type SYST-LANGU default SY-LANGU
     returning
       value(RV_OK) type SUBRC .
   class-methods CHANGE_INTERN
@@ -72,6 +72,7 @@ public section.
     importing
       !IV_OBJNR type JSTO-OBJNR
       !IV_STATUS type JEST-STAT
+      !IV_DEACTIVATE type ABAP_BOOL default ABAP_FALSE
     returning
       value(RV_OK) type SYST_SUBRC .
   class-methods READ_MULTI
@@ -99,6 +100,18 @@ public section.
       !IV_STSMA type JSTO-STSMA optional
     returning
       value(RV_STATUS) type JEST-STAT .
+  class-methods GET_TEXT
+    importing
+      !IV_OBJNR type JEST-OBJNR optional
+      !IV_SPRAS type SY-LANGU default SY-LANGU
+      !IV_BYPASS_BUFFER type FLAG default ABAP_FALSE
+      !IV_AUFNR type AUFK-AUFNR optional
+    exporting
+      !EV_STAT_EXIST type FLAG
+      !EV_STSMA type JSTO-STSMA
+      !EV_SYSTEM_TEXT type BSVX-STTXT
+      !EV_USER_TEXT type BSVX-STTXT
+      !EV_STONR type TJ30-STONR .
 protected section.
 private section.
 ENDCLASS.
@@ -124,34 +137,34 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJNR                       TYPE        JSTO-OBJNR
 * | [--->] IV_STATUS                      TYPE        JEST-STAT
+* | [--->] IV_DEACTIVATE                  TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * | [<-()] RV_OK                          TYPE        SYST_SUBRC
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method CHANGE_EXTERN.
+  METHOD change_extern.
 
     CALL FUNCTION 'STATUS_CHANGE_EXTERN'
       EXPORTING
-*       CHECK_ONLY                = ' '
-*       CLIENT                    = SY-MANDT
-        objnr                     = iv_objnr
-        user_status               = iv_status
-*       SET_INACT                 = ' '
-*       SET_CHGKZ                 =
-*       NO_CHECK                  = ' '
+*       CHECK_ONLY          = ' '
+*       CLIENT              = SY-MANDT
+        objnr               = iv_objnr
+        user_status         = iv_status
+        set_inact           = iv_deactivate
+*       SET_CHGKZ           =
+*       NO_CHECK            = ' '
 *     IMPORTING
-*       STONR                     =
-     EXCEPTIONS
-       OBJECT_NOT_FOUND          = 1
-       STATUS_INCONSISTENT       = 2
-       STATUS_NOT_ALLOWED        = 3
-       OTHERS                    = 4
-              .
+*       STONR               =
+      EXCEPTIONS
+        object_not_found    = 1
+        status_inconsistent = 2
+        status_not_allowed  = 3
+        OTHERS              = 4.
     IF sy-subrc <> 0.
       rv_ok = sy-subrc.
     ENDIF.
 
 
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -205,11 +218,12 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_BYPASS_BUFFER               TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [--->] IV_OBJNR                       TYPE        JEST-OBJNR
-* | [--->] IV_STATUS                      TYPE        JEST-STAT
+* | [--->] IV_STATUS                      TYPE        JEST-STAT(optional)
 * | [--->] IV_TXT04                       TYPE        J_TXT04(optional)
+* | [--->] IV_LANG                        TYPE        SYST-LANGU (default =SY-LANGU)
 * | [<-()] RV_OK                          TYPE        SUBRC
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method CHECK.
+  METHOD check.
     DATA: l_status TYPE jest-stat.
 
     CLEAR rv_ok.
@@ -217,8 +231,10 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
     IF iv_status IS NOT INITIAL.
       l_status = iv_status.
     ELSEIF iv_txt04 IS NOT INITIAL.
-      l_status = text_conversion( iv_objnr = iv_objnr iv_txt04 = iv_txt04 ).
-    ELSE.
+      l_status = text_conversion( iv_objnr = iv_objnr iv_txt04 = iv_txt04 iv_lang = iv_lang ).
+    ENDIF.
+
+    IF l_status IS INITIAL.
       rv_ok = 9.
       RETURN.
     ENDIF.
@@ -236,7 +252,7 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
       rv_ok = sy-subrc.
     ENDIF.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -256,6 +272,57 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
     ENDLOOP.
 
   endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_STATUS=>GET_TEXT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_OBJNR                       TYPE        JEST-OBJNR(optional)
+* | [--->] IV_SPRAS                       TYPE        SY-LANGU (default =SY-LANGU)
+* | [--->] IV_BYPASS_BUFFER               TYPE        FLAG (default =ABAP_FALSE)
+* | [--->] IV_AUFNR                       TYPE        AUFK-AUFNR(optional)
+* | [<---] EV_STAT_EXIST                  TYPE        FLAG
+* | [<---] EV_STSMA                       TYPE        JSTO-STSMA
+* | [<---] EV_SYSTEM_TEXT                 TYPE        BSVX-STTXT
+* | [<---] EV_USER_TEXT                   TYPE        BSVX-STTXT
+* | [<---] EV_STONR                       TYPE        TJ30-STONR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD GET_TEXT.
+    DATA(lv_objnr) = iv_objnr.
+
+    IF lv_objnr IS INITIAL.
+
+      IF iv_aufnr IS NOT INITIAL.
+        SELECT SINGLE objnr
+          FROM aufk
+          INTO lv_objnr
+          WHERE aufnr = iv_aufnr.
+      ENDIF.
+
+    ENDIF.
+
+    CHECK lv_objnr IS NOT INITIAL.
+
+    CALL FUNCTION 'STATUS_TEXT_EDIT'
+      EXPORTING
+*       FLG_USER_STAT     = ' '
+        objnr             = lv_objnr
+*       ONLY_ACTIVE       = 'X'
+        spras             = iv_spras
+        bypass_buffer     = iv_bypass_buffer
+      IMPORTING
+        anw_stat_existing = ev_stat_exist
+        e_stsma           = ev_stsma
+        line              = ev_system_text
+        user_line         = ev_user_text
+        stonr             = ev_stonr
+      EXCEPTIONS
+        OTHERS            = 2.
+    IF sy-subrc <> 0.
+      CLEAR: ev_system_text, ev_user_text.
+    ENDIF.
+
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -347,6 +414,8 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * | [<-()] RV_STATUS                      TYPE        JEST-STAT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD text_conversion.
+
+  CLEAR rv_status.
 
   IF iv_mode IS NOT INITIAL.
 
