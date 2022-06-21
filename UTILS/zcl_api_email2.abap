@@ -1,4 +1,12 @@
-  METHOD send_mail_fax.
+ IS_FORMOUT	TYPE FPFORMOUTPUT
+ CALL FUNCTION lv_function_name
+      EXPORTING
+        /1bcdwb/docparams  = ls_document_params
+      IMPORTING
+        /1bcdwb/formoutput = ls_formout
+ 
+ 
+ METHOD send_mail_fax.
     DATA: ls_outputparams_fax TYPE sfpoutpar.
     DATA: lv_emailaddr TYPE adr6-smtp_addr.
     DATA: lt_body_text TYPE soli_tab.
