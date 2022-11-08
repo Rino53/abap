@@ -576,7 +576,7 @@ ENDMETHOD.
 * | [<-()] RV_TEXT                        TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD read_single.
-" Last changed: 27.04.2017 14:55:34 by Rinat Salakhov
+" Last changed: 10.2021 by Rinat Salakhov
 
   DATA:
 *        lt_lines TYPE tttext,
@@ -584,40 +584,46 @@ METHOD read_single.
   FIELD-SYMBOLS: <ls_line> TYPE tline.
 
   IF iv_initial_clear = abap_true.
-    CLEAR: rv_text, ct_lines[], CT_TEXTS[].
+    CLEAR: rv_text, ct_lines[], ct_texts[].
   ENDIF.
+
+  cs_thead-tdid     = COND #( WHEN iv_id IS NOT INITIAL THEN iv_id ELSE cs_thead-tdid ).
+  cs_thead-tdobject = COND #( WHEN iv_object IS NOT INITIAL THEN iv_object ELSE cs_thead-tdobject ).
+  cs_thead-tdname   = COND #( WHEN iv_name IS NOT INITIAL THEN iv_name ELSE cs_thead-tdname ).
+  cs_thead-tdspras  = COND #( WHEN iv_spras IS NOT INITIAL THEN iv_spras ELSE cs_thead-tdspras ).
 
   CALL FUNCTION 'READ_TEXT'
     EXPORTING
-      id                            = iv_id
-      language                      = iv_spras
-      name                          = iv_name
-      object                        = iv_object
+      id                      = cs_thead-tdid
+      language                = cs_thead-tdspras
+      name                    = cs_thead-tdname
+      object                  = cs_thead-tdobject
+    IMPORTING
+      header                  = cs_thead
     TABLES
-      lines                         = ct_lines
+      lines                   = ct_lines
     EXCEPTIONS
-      id                            = 1
-      language                      = 2
-      name                          = 3
-      not_found                     = 4
-      object                        = 5
-      reference_check               = 6
-      wrong_access_to_archive       = 7
-      OTHERS                        = 8
-            .
+      id                      = 1
+      language                = 2
+      name                    = 3
+      not_found               = 4
+      object                  = 5
+      reference_check         = 6
+      wrong_access_to_archive = 7
+      OTHERS                  = 8.
   IF sy-subrc = 0.
     CLEAR lv_longtext.
     LOOP AT ct_lines ASSIGNING <ls_line> WHERE tdformat <> '/*'. "comment line
-      IF IV_FORCE_SPACES = abap_true
+      IF iv_force_spaces = abap_true
         OR <ls_line>-tdformat = ''
         OR <ls_line>-tdformat = '/'
         OR <ls_line>-tdformat = '/='.
-          CONCATENATE lv_longtext <ls_line>-tdline INTO lv_longtext SEPARATED BY space.
+        CONCATENATE lv_longtext <ls_line>-tdline INTO lv_longtext SEPARATED BY space.
       ELSE.
-          CONCATENATE lv_longtext <ls_line>-tdline INTO lv_longtext.
+        CONCATENATE lv_longtext <ls_line>-tdline INTO lv_longtext.
       ENDIF.
       CONDENSE lv_longtext.
-      APPEND <ls_line>-tdline TO CT_TEXTS.
+      APPEND <ls_line>-tdline TO ct_texts.
     ENDLOOP.
   ENDIF.
 
