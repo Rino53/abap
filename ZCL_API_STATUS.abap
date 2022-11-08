@@ -81,6 +81,7 @@ public section.
       !IV_ALL_IN_BUFFER type BOOLE_D default ABAP_TRUE
       !IV_NO_BUFFER_FILL type BOOLE_D default ABAP_TRUE
       !IV_GET_CHANGE_DOCUMENTS type BOOLE_D default ABAP_TRUE
+      !IV_REFRESH_BUFFERS	TYPE ABAP_BOOL  DEFAULT ABAP_TRUE
       !IT_ANYTABLE type ANY TABLE optional
       !IV_OBJNR_FIELD type FIELDNAME default 'OBJNR'
       !IV_OBJNR type J_OBJNR optional
@@ -112,6 +113,15 @@ public section.
       !EV_SYSTEM_TEXT type BSVX-STTXT
       !EV_USER_TEXT type BSVX-STTXT
       !EV_STONR type TJ30-STONR .
+  class-methods IS_ACTIVE
+    importing
+      !IV_BYPASS_BUFFER	TYPE BOOLE_D  DEFAULT ABAP_FALSE
+      !IV_OBJNR	TYPE JEST-OBJNR
+      !IV_STATUS	TYPE JEST-STAT OPTIONAL
+      !IV_TXT04	TYPE J_TXT04 OPTIONAL
+      !IV_LANG	TYPE SYST-LANGU  DEFAULT SY-LANGU
+    returning
+      value(RV_ACTIVATED) type ABAP_BOOL .
 protected section.
 private section.
 ENDCLASS.
@@ -342,7 +352,7 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 * | [<-->] CT_JCDS                        TYPE        TT_JCDS(optional)
 * | [<-->] CT_TJ02T                       TYPE        TT_TJ02T(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD READ_MULTI.
+    METHOD READ_MULTI.
     FIELD-SYMBOLS: <ls_structure> TYPE any,
                    <lv_field>     TYPE any.
 
@@ -360,6 +370,11 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
     ENDIF.
 
     CHECK ct_objnrs[] IS NOT INITIAL.
+
+    IF iv_refresh_buffers = abap_true.
+      buffer_refresh( ).
+    ENDIF.
+
 
     CALL FUNCTION 'STATUS_READ_MULTI'
       EXPORTING
@@ -382,15 +397,15 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
       SORT lt_statuses BY stat.
       DELETE ADJACENT DUPLICATES FROM lt_statuses COMPARING stat.
 
-      SELECT *
+      SELECT * "#EC CI_ALL_FIELDS_NEEDED
         FROM tj02t
         INTO TABLE ct_tj02t
         FOR ALL ENTRIES IN lt_statuses[]
         WHERE istat = lt_statuses-stat
           AND spras = sy-langu.
 
-      SELECT *
-        FROM tj30t
+      SELECT * "#EC CI_ALL_FIELDS_NEEDED
+        FROM tj30t  "#EC CI_GENBUFF
         INTO TABLE @DATA(lt_tj30t)
         FOR ALL ENTRIES IN @lt_statuses[]
         WHERE estat = @lt_statuses-stat
@@ -400,7 +415,7 @@ CLASS ZCL_API_STATUS IMPLEMENTATION.
 
 
 
-  ENDMETHOD.
+  ENDMETHOD. "#EC CI_FLDEXT_OK[2522971]
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -479,6 +494,20 @@ METHOD text_conversion.
 
   ENDIF.
 
+
+ENDMETHOD.
+
+METHOD IS_ACTIVE.
+
+    IF 0 = check( iv_bypass_buffer = iv_bypass_buffer
+                  iv_objnr         = iv_objnr
+                  iv_status        = iv_status
+                  iv_txt04         = iv_txt04
+                  iv_lang          = iv_lang ).
+
+      rv_activated = abap_true.
+
+    ENDIF.
 
 ENDMETHOD.
 ENDCLASS.
