@@ -31,6 +31,9 @@ public section.
 
   events ON_CONTENT_CHANGED .
 
+  class-methods GET_SINGLETON
+    returning
+      value(RO_LOG) type ref to ZCL_MD_LOG .
   class-methods CALL_SLG1
     importing
       !IV_OBJ type CLIKE optional .
@@ -146,7 +149,8 @@ public section.
     importing
       !IV_SHOW_ONLY_ERRORS type ABAP_BOOL default ABAP_FALSE
       !IO_SAVE_PROTOCOL type ref to ZCL_MD_LOG optional
-      !IV_SAVE_HANDLE type ABAP_BOOL default ABAP_FALSE .
+      !IV_SAVE_HANDLE type ABAP_BOOL default ABAP_FALSE
+    preferred parameter IV_SAVE_HANDLE .
 protected section.
 
   data MS_HEADER type BAL_S_LOG .
@@ -156,6 +160,8 @@ protected section.
   data MV_COUNT_WARN type I .
   data MV_CONTROL_HANDLE type BALCNTHNDL .
 private section.
+
+  class-data MO_SINGLETON type ref to ZCL_MD_LOG .
 ENDCLASS.
 
 
@@ -350,6 +356,11 @@ METHOD add_message.
     WRITE iv_textmsg3 TO ls_syst_new-msgv3.
     WRITE iv_textmsg4 TO ls_syst_new-msgv4.
 
+    CONDENSE: ls_syst_new-msgv1,
+              ls_syst_new-msgv2,
+              ls_syst_new-msgv3,
+              ls_syst_new-msgv4.
+
     MESSAGE ID iv_textmsgid TYPE iv_textmsgty NUMBER iv_textmsgno
           WITH ls_syst_new-msgv1 ls_syst_new-msgv2 ls_syst_new-msgv3 ls_syst_new-msgv4 INTO me->mv_message.
     me->add_message( ).
@@ -438,6 +449,13 @@ ENDMETHOD.
     SET PARAMETER ID 'BALOBJ' FIELD lv_balobj.
     CALL TRANSACTION 'SLG1' WITH AUTHORITY-CHECK AND SKIP FIRST SCREEN.
 
+    ""> snippet <""
+
+*SELECTION-SCREEN PUSHBUTTON 2(10) TEXT-006 USER-COMMAND uclg.
+*AT SELECTION-SCREEN.
+*  IF sy-ucomm = 'UCLG'. zcl_md_log=>call_slg1( sy-repid ). ENDIF.
+
+
   ENDMETHOD.
 
 
@@ -479,6 +497,8 @@ METHOD CONSTRUCTOR.
   ELSE.
     GET TIME STAMP FIELD mv_time_stmp.
   ENDIF.
+
+  mo_singleton = me.
 
 ENDMETHOD.
 
@@ -688,6 +708,22 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MD_LOG=>GET_SINGLETON
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RO_LOG                         TYPE REF TO ZCL_MD_LOG
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method GET_SINGLETON.
+
+    IF mo_singleton IS BOUND AND mo_singleton IS NOT INITIAL.
+      ro_log = mo_singleton.
+    ELSE.
+      ro_log = init_popup_log( ).
+    ENDIF.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_MD_LOG->HAS_ERRORS
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RV_VALUE                       TYPE        ABAP_BOOL
@@ -752,7 +788,6 @@ METHOD init_popup_log.
   IF iv_subobject IS SUPPLIED.
     lv_subobject = iv_subobject.
   ENDIF.
-
 
   ro_log = create_log( iv_display_type = c_sbal_profile-popup
                        iv_use_grid     = abap_true
