@@ -1,6 +1,5 @@
-class ZCL_MD_EXCEL_READER definition
+class ZCL_EXCEL_READER definition
   public
-  inheriting from ZCL_MD_BASE
   final
   create public .
 
@@ -38,6 +37,13 @@ public section.
       !IV_DECIMAL_C type CHAR1 optional
     returning
       value(RV_DEC) type MENGE_D .
+  class-methods READ_FILE_TXT
+    importing
+      !IV_FNAME type CLIKE
+      !IV_FROM_SERVER_FLAG type ABAP_BOOL default ABAP_FALSE
+      !IV_SERVER_WHITE_PREFIX type STRING optional
+    exporting
+      !CT_FILEDATA type TABLE .
   class-methods READ_FILE_XLSX
     importing
       !IV_FNAME type CLIKE
@@ -73,12 +79,18 @@ public section.
       !IV_FILE_FILTER type STRING optional
     returning
       value(RV_FILEPATH) type FILE_TABLE-FILENAME .
+  class-methods FILE_SAVE_DIALOG_FOLDER
+    importing
+      !IV_TITLE type STRING default 'Choose destination'
+      !IV_DEF_DIR type STRING optional
+    returning
+      value(RV_FOLDER) type STRING .
   class-methods FILE_OPEN_DIALOG_SERVER
     importing
       !IV_TITLE type STRING default 'Select a file'
       !IV_FILEMASK type STRING optional
       !IV_DEF_NAME type STRING optional
-      !IV_DEF_DIR type CLIKE OPTIONAL "default '/usr/sap/D01/D01/data'
+      !IV_DEF_DIR type CLIKE optional "default '/usr/sap/D01/D01/data'
       !IV_FILE_FILTER type STRING optional
     returning
       value(RV_FILEPATH) type FILE_TABLE-FILENAME .
@@ -109,11 +121,11 @@ ENDCLASS.
 
 
 
-CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
+CLASS ZCL_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_EXCEL_READER->CONSTRUCTOR
+* | Instance Public Method ZCL_EXCEL_READER->CONSTRUCTOR
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method CONSTRUCTOR.
@@ -126,7 +138,7 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_EXCEL_READER->CONVERT_SHEET
+* | Instance Public Method ZCL_EXCEL_READER->CONVERT_SHEET
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_FNAME                       TYPE        CLIKE(optional)
 * | [--->] IS_SHEET                       TYPE        T_ZSSRM_EXCEL_SHEET(optional)
@@ -222,7 +234,7 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_EXCEL_READER=>CONVERT_STR_TO_DATUM
+* | Static Public Method ZCL_EXCEL_READER=>CONVERT_STR_TO_DATUM
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ANYDATE                     TYPE        CLIKE
 * | [<-()] RV_DATUM                       TYPE        SYST-DATUM
@@ -299,7 +311,7 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_EXCEL_READER=>CONVERT_STR_TO_MENGE
+* | Static Public Method ZCL_EXCEL_READER=>CONVERT_STR_TO_MENGE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ANYSTRING                   TYPE        ANY
 * | [--->] IV_DECIMAL_C                   TYPE        CHAR1(optional)
@@ -641,7 +653,7 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_EXCEL_READER=>FILE_OPEN_DIALOG_LOCAL
+* | Static Public Method ZCL_EXCEL_READER=>FILE_OPEN_DIALOG_LOCAL
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TITLE                       TYPE        STRING (default ='Select a file')
 * | [--->] IV_DEF_EXT                     TYPE        STRING(optional)
@@ -689,7 +701,7 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_EXCEL_READER=>FILE_OPEN_DIALOG_SERVER
+* | Static Public Method ZCL_EXCEL_READER=>FILE_OPEN_DIALOG_SERVER
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TITLE                       TYPE        STRING (default ='Select a file')
 * | [--->] IV_FILEMASK                    TYPE        STRING(optional)
@@ -737,7 +749,40 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_EXCEL_READER->GET_COLUMN_NAME
+* | Static Public Method ZCL_EXCEL_READER=>FILE_SAVE_DIALOG_FOLDER
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TITLE                       TYPE        STRING (default ='Choose destination')
+* | [--->] IV_DEF_DIR                     TYPE        STRING(optional)
+* | [<-()] RV_FOLDER                      TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD FILE_SAVE_DIALOG_FOLDER.
+
+*value( WINDOW_TITLE )  TYPE STRING OPTIONAL
+*value( INITIAL_FOLDER )  TYPE STRING OPTIONAL
+*SELECTED_FOLDER  TYPE STRING
+*CNTL_ERROR
+*ERROR_NO_GUI
+*NOT_SUPPORTED_BY_GUI
+
+    CALL METHOD cl_gui_frontend_services=>directory_browse
+      EXPORTING
+        window_title    = iv_title
+        initial_folder  = iv_def_dir
+      CHANGING
+        selected_folder = rv_folder
+      EXCEPTIONS
+        OTHERS          = 4.
+    IF sy-subrc <> 0.
+      CLEAR rv_folder.
+    ENDIF.
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_READER->GET_COLUMN_NAME
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_COLUMN_IDX                  TYPE        ZMD_EXCEL_TAB-ROW
 * | [<-()] RV_COLUMN_NAME                 TYPE        FIELDNAME
@@ -754,7 +799,91 @@ CLASS ZCL_MD_EXCEL_READER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_EXCEL_READER=>READ_FILE_XLSX
+* | Static Public Method ZCL_EXCEL_READER=>READ_FILE_TXT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_FNAME                       TYPE        CLIKE
+* | [--->] IV_FROM_SERVER_FLAG            TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [--->] IV_SERVER_WHITE_PREFIX         TYPE        STRING(optional)
+* | [<---] CT_FILEDATA                    TYPE        TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD read_file_txt.
+  DATA: lv_xstring TYPE xstring.
+
+  IF iv_from_server_flag IS NOT INITIAL.
+*      lv_xstring = _load_file_from_server( iv_fname ).
+
+
+    DATA(lo_path) = cl_fs_path=>create_smart_path( iv_fname ).
+    CHECK lo_path IS BOUND.
+
+    DATA(lv_srvfile) = to_lower( lo_path->get_path_name( ) ).
+
+    DATA(lv_prefix_len) = strlen( iv_server_white_prefix ).
+    IF iv_server_white_prefix IS NOT INITIAL AND
+       lv_prefix_len > 0.
+
+      IF lo_path->is_absolute( ) = abap_false OR
+        lv_srvfile(lv_prefix_len) <> to_lower( iv_server_white_prefix ).
+        MESSAGE i398(00) WITH 'Server path must start from:' iv_server_white_prefix DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+
+    ENDIF.
+
+
+    " lv_srvfile is lowercase
+    OPEN DATASET lv_srvfile FOR INPUT
+                            IN TEXT MODE
+                            ENCODING DEFAULT
+                            WITH WINDOWS LINEFEED.
+    CHECK sy-subrc = 0.
+
+    DATA:
+      lv_strline TYPE string,
+      lv_len     TYPE i.
+
+    DO.
+      CLEAR lv_len.
+      CLEAR lv_strline.
+      READ DATASET lv_srvfile INTO lv_strline LENGTH lv_len.
+      IF sy-subrc <> 0.
+        IF lv_len > 0.
+          APPEND lv_strline TO ct_filedata.
+        ENDIF.
+        EXIT.
+      ENDIF.
+      APPEND lv_strline TO ct_filedata.
+    ENDDO.
+
+    IF sy-subrc > 10.
+      CLOSE DATASET lv_srvfile.
+      RETURN.
+    ENDIF.
+
+    CLOSE DATASET lv_srvfile.
+
+
+
+  ELSE.
+*      lv_xstring = _load_file_from_localpc( iv_fname ).
+
+    cl_gui_frontend_services=>gui_upload(
+        EXPORTING
+          filename   = iv_fname
+        CHANGING
+          data_tab   = ct_filedata
+        EXCEPTIONS
+          OTHERS     = 20 ).
+
+
+  ENDIF.
+
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_EXCEL_READER=>READ_FILE_XLSX
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_FNAME                       TYPE        CLIKE
 * | [--->] IT_SHEET_NAME                  TYPE        /BOBF/T_BUF_STRING_RANGE(optional)
@@ -847,7 +976,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Private Method ZCL_MD_EXCEL_READER=>_CONVERT_SHEET_DATA
+* | Static Private Method ZCL_EXCEL_READER=>_CONVERT_SHEET_DATA
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_SHEET_NAME                  TYPE        STRING
 * | [--->] I_SHEET_DATA                   TYPE REF TO DATA
@@ -890,7 +1019,7 @@ METHOD _convert_sheet_data.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Private Method ZCL_MD_EXCEL_READER=>_LOAD_FILE_FROM_LOCALPC
+* | Static Private Method ZCL_EXCEL_READER=>_LOAD_FILE_FROM_LOCALPC
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_FILEPATH                    TYPE        STRING
 * | [<-()] RV_CONTENT                     TYPE        XSTRING
@@ -933,7 +1062,7 @@ METHOD _convert_sheet_data.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Private Method ZCL_MD_EXCEL_READER=>_LOAD_FILE_FROM_SERVER
+* | Static Private Method ZCL_EXCEL_READER=>_LOAD_FILE_FROM_SERVER
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_SERVERFILE                  TYPE        CLIKE
 * | [<-()] RV_CONTENT                     TYPE        XSTRING
