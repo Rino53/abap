@@ -56,11 +56,13 @@ public section.
     importing
       !IV_ID type THEAD-TDID
       !IV_SPRAS type THEAD-TDSPRAS default SY-LANGU
-      !IV_NAME type THEAD-TDNAME
+      !IV_NAME type CLIKE
       !IV_OBJECT type THEAD-TDOBJECT
       !IV_INITIAL_CLEAR type BOOLE_D default ABAP_TRUE
       !IV_FORCE_SPACES type BOOLE_D default ABAP_FALSE
+      !IV_SPRAS2 type THEAD-TDSPRAS optional
     changing
+      !CS_THEAD type THEAD optional
       !CT_TEXTS type LOP_TDLINE_TAB optional
       !CT_LINES type TLINE_TAB optional
     returning
@@ -567,16 +569,18 @@ ENDMETHOD.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ID                          TYPE        THEAD-TDID
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
-* | [--->] IV_NAME                        TYPE        THEAD-TDNAME
+* | [--->] IV_NAME                        TYPE        CLIKE
 * | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT
 * | [--->] IV_INITIAL_CLEAR               TYPE        BOOLE_D (default =ABAP_TRUE)
 * | [--->] IV_FORCE_SPACES                TYPE        BOOLE_D (default =ABAP_FALSE)
+* | [--->] IV_SPRAS2                      TYPE        THEAD-TDSPRAS(optional)
+* | [<-->] CS_THEAD                       TYPE        THEAD(optional)
 * | [<-->] CT_TEXTS                       TYPE        LOP_TDLINE_TAB(optional)
 * | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
 * | [<-()] RV_TEXT                        TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD read_single.
-" Last changed: 10.2021 by Rinat Salakhov
+  " Last changed: 05.2023 by Rinat Salakhov
 
   DATA:
 *        lt_lines TYPE tttext,
@@ -589,7 +593,7 @@ METHOD read_single.
 
   cs_thead-tdid     = COND #( WHEN iv_id IS NOT INITIAL THEN iv_id ELSE cs_thead-tdid ).
   cs_thead-tdobject = COND #( WHEN iv_object IS NOT INITIAL THEN iv_object ELSE cs_thead-tdobject ).
-  cs_thead-tdname   = COND #( WHEN iv_name IS NOT INITIAL THEN iv_name ELSE cs_thead-tdname ).
+  cs_thead-tdname   = COND thead-tdname( WHEN iv_name IS NOT INITIAL THEN iv_name ELSE cs_thead-tdname ).
   cs_thead-tdspras  = COND #( WHEN iv_spras IS NOT INITIAL THEN iv_spras ELSE cs_thead-tdspras ).
 
   CALL FUNCTION 'READ_TEXT'
@@ -625,11 +629,25 @@ METHOD read_single.
       CONDENSE lv_longtext.
       APPEND <ls_line>-tdline TO ct_texts.
     ENDLOOP.
+
+    IF lv_longtext IS NOT INITIAL.
+      rv_text = lv_longtext.
+    ENDIF.
+
+  ELSEIF iv_spras2 IS NOT INITIAL.
+    read_single( EXPORTING iv_id = iv_id
+                           iv_name = iv_name
+                           iv_object = iv_object
+                           iv_spras = iv_spras2
+                           iv_initial_clear = iv_initial_clear
+                           iv_force_spaces = iv_force_spaces
+                 CHANGING cs_thead = cs_thead
+                          ct_texts = ct_texts
+                          ct_lines = ct_lines
+                 RECEIVING rv_text = rv_text ).
   ENDIF.
 
-  IF lv_longtext IS NOT INITIAL.
-    rv_text = lv_longtext.
-  ENDIF.
+
 
 ***    Some format keys are predefined by SAPscript. They have a predefined meaning and can be used in all texts:
 ***    * default paragraph
