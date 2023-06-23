@@ -65,6 +65,8 @@ protected section.
 private section.
 *"* private components of class ZCL_API_BDC
 *"* do not include other source files here!!!
+
+  class-methods _EXAMPLES .
 ENDCLASS.
 
 
@@ -184,27 +186,27 @@ endmethod.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD call.
 
-  IF check_auth = abap_true.
-
-    TRY .
-        CALL TRANSACTION tcode WITH AUTHORITY-CHECK
-        USING   data
-        OPTIONS FROM options
-        MESSAGES INTO msgcoll[].
-      CATCH cx_sy_authorization_error.
-        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
-        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
-    ENDTRY.
-
-
-  ELSE.
+***  IF check_auth = abap_true.
+***
+***    TRY .
+***        CALL TRANSACTION tcode WITH AUTHORITY-CHECK
+***        USING   data
+***        OPTIONS FROM options
+***        MESSAGES INTO msgcoll[].
+***      CATCH cx_sy_authorization_error.
+***        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+***        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+***    ENDTRY.
+***
+***
+***  ELSE.
 
     CALL TRANSACTION tcode
       USING   data
       OPTIONS FROM options
       MESSAGES INTO msgcoll[].
 
-  ENDIF.
+***  ENDIF.
 
 ENDMETHOD.
 
@@ -276,6 +278,58 @@ endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_BDC=>GET_TEXT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_OBJNR                       TYPE        JEST-OBJNR(optional)
+* | [--->] IV_SPRAS                       TYPE        SY-LANGU (default =SY-LANGU)
+* | [--->] IV_BYPASS_BUFFER               TYPE        FLAG (default =ABAP_FALSE)
+* | [--->] IV_AUFNR                       TYPE        AUFK-AUFNR(optional)
+* | [<---] EV_STAT_EXIST                  TYPE        FLAG
+* | [<---] EV_STSMA                       TYPE        JSTO-STSMA
+* | [<---] EV_SYSTEM_TEXT                 TYPE        BSVX-STTXT
+* | [<---] EV_USER_TEXT                   TYPE        BSVX-STTXT
+* | [<---] EV_STONR                       TYPE        TJ30-STONR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD GET_TEXT.
+    DATA: lv_objnr TYPE JEST-OBJNR.
+    lv_objnr = iv_objnr.
+
+    IF lv_objnr IS INITIAL.
+
+      IF iv_aufnr IS NOT INITIAL.
+        SELECT SINGLE objnr
+          FROM aufk
+          INTO lv_objnr
+          WHERE aufnr = iv_aufnr.
+      ENDIF.
+
+    ENDIF.
+
+    CHECK lv_objnr IS NOT INITIAL.
+
+    CALL FUNCTION 'STATUS_TEXT_EDIT'
+      EXPORTING
+*       FLG_USER_STAT     = ' '
+        objnr             = lv_objnr
+*       ONLY_ACTIVE       = 'X'
+        spras             = iv_spras
+        bypass_buffer     = iv_bypass_buffer
+      IMPORTING
+        anw_stat_existing = ev_stat_exist
+        e_stsma           = ev_stsma
+        line              = ev_system_text
+        user_line         = ev_user_text
+        stonr             = ev_stonr
+      EXCEPTIONS
+        OTHERS            = 2.
+    IF sy-subrc <> 0.
+      CLEAR: ev_system_text, ev_user_text.
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_API_BDC->OKCODE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] PAR                            TYPE        ANY
@@ -320,53 +374,77 @@ method SUBSCR.
 
 endmethod.
 
+
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method /SIE/AD_ZMS0_STATUS=>GET_TEXT
+* | Instance Private Method ZCL_API_BDC->_EXAMPLES
 * +-------------------------------------------------------------------------------------------------+
-* | [--->] IV_OBJNR                       TYPE        JEST-OBJNR(optional)
-* | [--->] IV_SPRAS                       TYPE        SY-LANGU (default =SY-LANGU)
-* | [--->] IV_BYPASS_BUFFER               TYPE        FLAG (default =ABAP_FALSE)
-* | [--->] IV_AUFNR                       TYPE        AUFK-AUFNR(optional)
-* | [<---] EV_STAT_EXIST                  TYPE        FLAG
-* | [<---] EV_STSMA                       TYPE        JSTO-STSMA
-* | [<---] EV_SYSTEM_TEXT                 TYPE        BSVX-STTXT
-* | [<---] EV_USER_TEXT                   TYPE        BSVX-STTXT
-* | [<---] EV_STONR                       TYPE        TJ30-STONR
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD GET_TEXT.
-    DATA(lv_objnr) = iv_objnr.
+method _EXAMPLES.
 
-    IF lv_objnr IS INITIAL.
+  DATA: lo_cor2 TYPE REF TO zcl_api_bdc,
+        caufvd TYPE caufvd.
+        CREATE OBJECT lo_cor2 EXPORTING tcode = 'COR2'.
+        lo_cor2->options-updmode = 'S'.
+        lo_cor2->screen( 'SAPLCOKO|5110|=OMLA' ).
+        lo_cor2->field( EXPORTING fnam = 'CAUFVD-AUFNR' fval = caufvd-aufnr ).
+        lo_cor2->call( check_auth = abap_true ).
 
-      IF iv_aufnr IS NOT INITIAL.
-        SELECT SINGLE objnr
-          FROM aufk
-          INTO lv_objnr
-          WHERE aufnr = iv_aufnr.
-      ENDIF.
 
-    ENDIF.
+  DATA: iv_aufnr TYPE aufnr,
+        iv_charg TYPE charg_d.
+  " change orders batch (charg) with batch input
 
-    CHECK lv_objnr IS NOT INITIAL.
+  IF iv_aufnr IS NOT INITIAL AND iv_charg IS NOT INITIAL.
+*    DATA: lo_cor2 TYPE REF TO zcl_api_bdc.
+    CREATE OBJECT lo_cor2 EXPORTING tcode = 'COR2'.
+    lo_cor2->options-updmode = 'S'.
+    lo_cor2->options-nobinpt = abap_false.
+    lo_cor2->options-dismode = 'N'.
+*    lo_cor2->options-updmode = 'A'.
+    lo_cor2->screen( 'SAPLCOKO|5110|/00' ).
+    lo_cor2->field( EXPORTING fnam = 'CAUFVD-AUFNR' fval = iv_aufnr ).
+    lo_cor2->screen( 'SAPLCOKO|5115|=KOWE' ).
+    lo_cor2->screen( 'SAPLCOKO|5115|/00' ).
+    lo_cor2->field( EXPORTING fnam = 'AFPOD-CHARG' fval = iv_charg ).
 
-    CALL FUNCTION 'STATUS_TEXT_EDIT'
-      EXPORTING
-*       FLG_USER_STAT     = ' '
-        objnr             = lv_objnr
-*       ONLY_ACTIVE       = 'X'
-        spras             = iv_spras
-        bypass_buffer     = iv_bypass_buffer
-      IMPORTING
-        anw_stat_existing = ev_stat_exist
-        e_stsma           = ev_stsma
-        line              = ev_system_text
-        user_line         = ev_user_text
-        stonr             = ev_stonr
-      EXCEPTIONS
-        OTHERS            = 2.
-    IF sy-subrc <> 0.
-      CLEAR: ev_system_text, ev_user_text.
-    ENDIF.
+    lo_cor2->screen( 'SAPLCOKO|5115|=OMLA' ).
+    lo_cor2->screen( 'SAPLCOMK|5120|=BACK' ).
+    lo_cor2->field( EXPORTING fnam = 'RESBD-CHARG(01)' fval = iv_charg ).
+    lo_cor2->screen( 'SAPLCOMD|5100|=BU' ).
 
-  ENDMETHOD.
+    lo_cor2->screen( 'SAPLCOKO|5115|=BU' ).
+
+*    go_sequence->dequeue_sequence( ). " before cor2
+    lo_cor2->call( check_auth = abap_true ).
+  ENDIF.
+
+
+  CHECK caufvd-plnbez IS NOT INITIAL.
+
+  DATA: lo_qe51n TYPE REF TO zcl_api_bdc.
+  CREATE OBJECT lo_qe51n EXPORTING tcode = 'QE51N'.
+  lo_qe51n->options-updmode = 'S'.
+  lo_qe51n->options-nobinpt = abap_true.
+  lo_qe51n->options-defsize = abap_false.
+
+  " Exclude work centers
+  lo_qe51n->screen( 'SAPLQEES|0500|=%022' ).
+  lo_qe51n->screen( 'SAPLALDB|3000|=NOSV' ).
+  lo_qe51n->screen( 'SAPLALDB|3000|=ACPT' ).
+  lo_qe51n->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'EXTERN' ).
+  lo_qe51n->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'F&E' ).
+  lo_qe51n->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'LABOR' ).
+
+  " Pass other params
+  lo_qe51n->screen( 'SAPLQEES|0500|=CRET' ).
+  lo_qe51n->field( EXPORTING fnam = 'QL_WERKS-LOW' fval = caufvd-werks ).
+  lo_qe51n->field( EXPORTING fnam = 'QL_MATNR-LOW' fval = caufvd-plnbez ).
+  lo_qe51n->field( EXPORTING fnam = 'QL_CHARG-LOW' fval = 'charg' ).
+  lo_qe51n->field( EXPORTING fnam = 'QL_HERKT-LOW' fval = '03' ). " insp lot origin
+  lo_qe51n->field( EXPORTING fnam = 'QL_HERKT-HIGH' fval = '04' ).
+  lo_qe51n->field( EXPORTING fnam = 'QL_MAX_R' fval = '99999' ).
+
+  lo_qe51n->call( check_auth = abap_true ).
+
+endmethod.
 ENDCLASS.
