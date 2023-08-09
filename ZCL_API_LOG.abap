@@ -447,14 +447,15 @@ ENDMETHOD.
     ENDIF.
 
     SET PARAMETER ID 'BALOBJ' FIELD lv_balobj.
-    CALL TRANSACTION 'SLG1' WITH AUTHORITY-CHECK AND SKIP FIRST SCREEN.
+    CALL TRANSACTION 'SLG1' AND SKIP FIRST SCREEN.
+*    CALL TRANSACTION 'SLG1' WITH AUTHORITY-CHECK AND SKIP FIRST SCREEN.
 
     ""> snippet <""
     "" Place this code right after -- SELECTION-SCREEN END OF BLOCK.
 
 *SELECTION-SCREEN PUSHBUTTON 2(10) TEXT-LOG USER-COMMAND uclg. " TEXT-LOG = 'Show Log'
 *AT SELECTION-SCREEN.
-*  IF sy-ucomm = 'UCLG'. zcl_md_log=>call_slg1( sy-repid ). ENDIF.
+*  IF sy-ucomm = 'UCLG'. ZCL_MD_LOG=>call_slg1( sy-repid ). ENDIF.
 
 
   ENDMETHOD.
@@ -593,7 +594,10 @@ ENDMETHOD.
 METHOD get_message.
   DEFINE _append_to_range.
     IF &1 IS NOT INITIAL.
-      APPEND VALUE #( sign = 'I' option = 'EQ' low = &1 ) TO &2.
+      CLEAR: ls_range.
+      CONCATENATE 'IEQ' &1 INTO ls_range.
+      APPEND ls_range TO &2.
+*      APPEND VALUE #( sign = 'I' option = 'EQ' low = &1 ) TO &2.
     ENDIF.
   END-OF-DEFINITION.
 
@@ -607,10 +611,12 @@ METHOD get_message.
 
   CLEAR rs_message.
 
-  DATA(lt_allmsg) = get_messages( ).
+  DATA: lt_allmsg TYPE BAL_T_MSG.
+  lt_allmsg = get_messages( ).
 
   CHECK lt_allmsg[] IS NOT INITIAL.
 
+  DATA: ls_range LIKE LINE OF lt_msgv1_r. " Range of char50
   _append_to_range:
     iv_msgty lt_msgty_r[],
     iv_msgid lt_msgid_r[],
@@ -667,7 +673,8 @@ METHOD GET_MESSAGES.
    check sy-subrc = 0.
 
   REFRESH RT_MSG  .
-  LOOP AT lt_msg_handle INTO DATA(ls_msg_handle).
+  DATA: ls_msg_handle LIKE LINE OF lt_msg_handle.
+  LOOP AT lt_msg_handle INTO ls_msg_handle.
     CALL FUNCTION 'BAL_LOG_MSG_READ'
       EXPORTING
         i_s_msg_handle = ls_msg_handle
@@ -690,10 +697,12 @@ ENDMETHOD.
 * | [<-()] RT_BAPIRET2                    TYPE        BAPIRET2_T
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD GET_MESSAGES_RET2.
-
-  DATA(lt_balmsg) = get_messages( ).
-  LOOP AT lt_balmsg ASSIGNING FIELD-SYMBOL(<ls_bal>).
-    APPEND INITIAL LINE TO rt_bapiret2 ASSIGNING FIELD-SYMBOL(<ls_ret2>).
+  DATA: lt_balmsg TYPE BAL_T_MSG.
+  lt_balmsg = get_messages( ).
+  FIELD-SYMBOLS: <ls_bal> LIKE LINE OF lt_balmsg.
+  FIELD-SYMBOLS: <ls_ret2> LIKE LINE OF rt_bapiret2.
+  LOOP AT lt_balmsg ASSIGNING <ls_bal>.
+    APPEND INITIAL LINE TO rt_bapiret2 ASSIGNING <ls_ret2>.
     MOVE-CORRESPONDING <ls_bal> TO <ls_ret2>.
     <ls_ret2>-type = <ls_bal>-msgty.
     <ls_ret2>-id   = <ls_bal>-msgid.
@@ -822,19 +831,21 @@ METHOD load.
 *  FIELD-SYMBOLS <ls_object> LIKE LINE OF ls_log_filter-object.
 *  FIELD-SYMBOLS <ls_subobject> LIKE LINE OF ls_log_filter-subobject.
 *  FIELD-SYMBOLS <ls_extnumber> LIKE LINE OF ls_log_filter-extnumber.
-
+  FIELD-SYMBOLS: <ls_object> LIKE LINE OF ls_log_filter-object,
+                 <ls_subobject> LIKE LINE OF ls_log_filter-subobject,
+                 <ls_extnumber> LIKE LINE OF ls_log_filter-extnumber.
   IF iv_object IS SUPPLIED.
-    INSERT INITIAL LINE INTO TABLE ls_log_filter-object ASSIGNING FIELD-SYMBOL(<ls_object>).
+    INSERT INITIAL LINE INTO TABLE ls_log_filter-object ASSIGNING <ls_object>.
     <ls_object>-sign = 'I'.
     <ls_object>-option = 'EQ'.
     <ls_object>-low = iv_object.
 
-    INSERT INITIAL LINE INTO TABLE ls_log_filter-subobject ASSIGNING FIELD-SYMBOL(<ls_subobject>).
+    INSERT INITIAL LINE INTO TABLE ls_log_filter-subobject ASSIGNING <ls_subobject>.
     <ls_subobject>-sign = 'I'.
     <ls_subobject>-option = 'EQ'.
     <ls_subobject>-low = iv_subobject.
 
-    INSERT INITIAL LINE INTO TABLE ls_log_filter-extnumber ASSIGNING FIELD-SYMBOL(<ls_extnumber>).
+    INSERT INITIAL LINE INTO TABLE ls_log_filter-extnumber ASSIGNING <ls_extnumber>.
     <ls_extnumber>-sign = 'I'.
     <ls_extnumber>-option = 'EQ'.
     <ls_extnumber>-low = iv_extnumber.
@@ -862,7 +873,8 @@ METHOD load.
 
   lt_hdr_tmp = lt_log_header.
   REFRESH lt_log_header.
-  READ TABLE lt_hdr_tmp ASSIGNING FIELD-SYMBOL(<ls_log_header>) INDEX lines( lt_hdr_tmp ).
+  FIELD-SYMBOLS: <ls_log_header> LIKE LINE OF lt_hdr_tmp.
+  READ TABLE lt_hdr_tmp ASSIGNING <ls_log_header> INDEX lines( lt_hdr_tmp ).
   IF sy-subrc = 0.
     APPEND <ls_log_header> TO lt_log_header.
   ENDIF.
@@ -880,8 +892,8 @@ METHOD load.
       OTHERS                        = 4.
   IF sy-subrc = 3.
 
-    LOOP AT lt_log_header INTO DATA(ls_log_header) WHERE log_handle IS NOT INITIAL. "#EC CI_SORTSEQ
-      INSERT ls_log_header-log_handle INTO TABLE lt_log_handle.
+    LOOP AT lt_log_header ASSIGNING <ls_log_header> WHERE log_handle IS NOT INITIAL. "#EC CI_SORTSEQ
+      INSERT <ls_log_header>-log_handle INTO TABLE lt_log_handle.
     ENDLOOP.
 
     CALL FUNCTION 'BAL_DB_RELOAD'
@@ -908,7 +920,8 @@ METHOD load.
 
   READ TABLE lt_log_header ASSIGNING <ls_log_header> INDEX 1.
   CHECK sy-subrc = 0.
-  READ TABLE lt_log_handle ASSIGNING FIELD-SYMBOL(<lv_log_handle>) INDEX 1.
+  FIELD-SYMBOLS: <lv_log_handle> LIKE LINE OF lt_log_handle.
+  READ TABLE lt_log_handle ASSIGNING <lv_log_handle> INDEX 1.
   CHECK sy-subrc = 0.
 
   IF iv_instance_type IS NOT INITIAL.
@@ -1115,7 +1128,8 @@ METHOD show.
   REFRESH lt_handle.
   INSERT mv_handle INTO TABLE lt_handle.
 
-  DATA(lv_old_ucomm) = sy-ucomm.
+  DATA: lv_old_ucomm TYPE syst-ucomm.
+  lv_old_ucomm = sy-ucomm.
 
   IF io_container IS BOUND.
     CALL FUNCTION 'BAL_CNTL_CREATE'
