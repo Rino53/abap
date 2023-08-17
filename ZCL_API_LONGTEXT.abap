@@ -1,9 +1,9 @@
-class ZCL_API_LONGTEXT definition
+class ZCL_API_TXT definition
   public
   create private .
 
 public section.
-*"* public components of class ZCL_API_LONGTEXT
+*"* public components of class ZCL_API_TXT
 *"* do not include other source files here!!!
   type-pools ABAP .
 
@@ -39,10 +39,11 @@ public section.
       !DST_SPRAS type THEAD-TDSPRAS optional
       !DST_NAME type THEAD-TDNAME optional
       !DST_OBJECT type THEAD-TDOBJECT optional
+    exporting
+      !RV_ERROR type CHAR1
     changing
-      !SRC_HEADERS type EMMA_THEAD_T optional
-    returning
-      value(RV_ERROR) type CHAR1 .
+      !SRC_HEADERS type EMMA_THEAD_T optional.
+
   class-methods READ_SMART
     importing
       !IV_ID type THEAD-TDID
@@ -61,12 +62,25 @@ public section.
       !IV_INITIAL_CLEAR type BOOLE_D default ABAP_TRUE
       !IV_FORCE_SPACES type BOOLE_D default ABAP_FALSE
       !IV_SPRAS2 type THEAD-TDSPRAS optional
+    exporting
+      !RV_TEXT type STRING
     changing
       !CS_THEAD type THEAD optional
-      !CT_TEXTS type LOP_TDLINE_TAB optional
-      !CT_LINES type TLINE_TAB optional
-    returning
-      value(RV_TEXT) type STRING .
+      !CT_TEXTS type RE_T_TEXTLINE  optional " LOP_TDLINE_TAB
+      !CT_LINES type TLINE_TAB optional.
+
+  class-methods READ_simple
+    importing
+      !IV_ID type THEAD-TDID
+      !IV_SPRAS type THEAD-TDSPRAS default SY-LANGU
+      !IV_NAME type CLIKE
+      !IV_OBJECT type THEAD-TDOBJECT
+      !IV_INITIAL_CLEAR type BOOLE_D default ABAP_TRUE
+      !IV_FORCE_SPACES type BOOLE_D default ABAP_FALSE
+      !IV_SPRAS2 type THEAD-TDSPRAS optional
+    RETURNING
+      VALUE(RV_TEXT) type STRING.
+
   class-methods SHOW
     importing
       !IV_OBJECT type TDOBJECT optional
@@ -86,7 +100,7 @@ public section.
       !IV_PACKAGE_SIZE type I default 3000
       !IV_MAXIMUM_RESULTS type I default 0
     returning
-      value(RO_TEXTS) type ref to ZCL_API_LONGTEXT .
+      value(RO_TEXTS) type ref to ZCL_API_TXT .
   class-methods REFRESH_CACHE .
   class-methods SAVE_TEXT
     importing
@@ -98,11 +112,12 @@ public section.
       !IS_HEADER_IN type THEAD optional
       !IV_SAVEMODE_DIRECT type BOOLE_D default ABAP_TRUE
       !IV_INSERT type ABAP_BOOL default ABAP_FALSE
+    exporting
+      !RS_HEADER_OUT type THEAD
     changing
       !CT_LINES type TLINE_TAB optional
-      !CT_TEXTS type LOP_TDLINE_TAB optional
-    returning
-      value(RS_HEADER_OUT) type THEAD .
+      !CT_TEXTS type RE_T_TEXTLINE  optional. "LOP_TDLINE_TAB
+
   class-methods DELETE_TEXT
     importing
       !IV_ID type THEAD-TDID optional
@@ -131,7 +146,7 @@ public section.
 protected section.
 private section.
 
-*"* private components of class ZCL_API_LONGTEXT
+*"* private components of class ZCL_API_TXT
 *"* do not include other source files here!!!
   data MT_TEXTS_SELECTED type TY_T_TEXTS_MULTI .
 
@@ -151,11 +166,11 @@ ENDCLASS.
 
 
 
-CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
+CLASS ZCL_API_TXT IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Private Method ZCL_API_LONGTEXT=>ADD_TO_CACHE
+* | Static Private Method ZCL_API_TXT=>ADD_TO_CACHE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IS_DATA                        TYPE        TY_S_TEXTS_MULTI(optional)
 * | [--->] IT_DATA                        TYPE        TY_T_TEXTS_MULTI(optional)
@@ -192,7 +207,7 @@ CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>COPY_TEXTS
+* | Static Public Method ZCL_API_TXT=>COPY_TEXTS
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] SRC_ID                         TYPE        THEAD-TDID(optional)
 * | [--->] SRC_SPRAS                      TYPE        THEAD-TDSPRAS (default ='*')
@@ -202,8 +217,8 @@ CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
 * | [--->] DST_SPRAS                      TYPE        THEAD-TDSPRAS(optional)
 * | [--->] DST_NAME                       TYPE        THEAD-TDNAME(optional)
 * | [--->] DST_OBJECT                     TYPE        THEAD-TDOBJECT(optional)
+* | [<---] RV_ERROR                       TYPE        CHAR1
 * | [<-->] SRC_HEADERS                    TYPE        EMMA_THEAD_T(optional)
-* | [<-()] RV_ERROR                       TYPE        CHAR1
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD copy_texts.
 
@@ -233,20 +248,21 @@ CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
     ENDIF.
 
     " build destination keys
-    LOOP AT src_headers INTO DATA(ls_headin) WHERE tdname IS NOT INITIAL
-                                               AND tdobject IS NOT INITIAL
-                                               AND tdid IS NOT INITIAL
-                                               AND tdspras IS NOT INITIAL.
+    DATA: ls_headin LIKE LINE OF src_headers.
+    LOOP AT src_headers INTO ls_headin WHERE tdname IS NOT INITIAL
+                                         AND tdobject IS NOT INITIAL
+                                         AND tdid IS NOT INITIAL
+                                         AND tdspras IS NOT INITIAL.
       CLEAR ls_cpkey.
       ls_cpkey-srcobject = ls_headin-tdobject.
       ls_cpkey-srcname   = ls_headin-tdname.
       ls_cpkey-srcid     = ls_headin-tdid.
       ls_cpkey-srclang   = ls_headin-tdspras.
 
-      ls_cpkey-destobject = COND #( WHEN dst_object IS NOT INITIAL THEN dst_object ELSE ls_cpkey-srcobject ).
-      ls_cpkey-destname   = COND #( WHEN dst_name   IS NOT INITIAL THEN dst_name   ELSE ls_cpkey-srcname ).
-      ls_cpkey-destid     = COND #( WHEN dst_id     IS NOT INITIAL THEN dst_id     ELSE ls_cpkey-srcid ).
-      ls_cpkey-destlang   = COND #( WHEN dst_spras  IS NOT INITIAL THEN dst_spras  ELSE ls_cpkey-srclang ).
+      IF dst_object IS NOT INITIAL. ls_cpkey-destobject = dst_object. ELSE. ls_cpkey-destobject = ls_cpkey-srcobject. ENDIF.
+      IF dst_name   IS NOT INITIAL. ls_cpkey-destname   = dst_name.   ELSE. ls_cpkey-destname   = ls_cpkey-srcname.   ENDIF.
+      IF dst_id     IS NOT INITIAL. ls_cpkey-destid     = dst_id.     ELSE. ls_cpkey-destid     = ls_cpkey-srcid.     ENDIF.
+      IF dst_spras  IS NOT INITIAL. ls_cpkey-destlang   = dst_spras.  ELSE. ls_cpkey-destlang   = ls_cpkey-srclang.   ENDIF.
 
       IF ls_cpkey-srcobject  && ls_cpkey-srcname  && ls_cpkey-srcid  && ls_cpkey-srclang <>
          ls_cpkey-destobject && ls_cpkey-destname && ls_cpkey-destid && ls_cpkey-destlang .
@@ -269,7 +285,7 @@ CLASS ZCL_API_LONGTEXT IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>DELETE_TEXT
+* | Static Public Method ZCL_API_TXT=>DELETE_TEXT
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ID                          TYPE        THEAD-TDID(optional)
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
@@ -316,7 +332,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Private Method ZCL_API_LONGTEXT=>READ_FROM_CACHE
+* | Static Private Method ZCL_API_TXT=>READ_FROM_CACHE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ID                          TYPE        THEAD-TDID
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
@@ -342,7 +358,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>READ_MULTI
+* | Static Public Method ZCL_API_TXT=>READ_MULTI
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IR_OBJECT                      TYPE        TY_R_OBJECTS
 * | [--->] IR_NAME                        TYPE        TY_R_NAMES(optional)
@@ -350,7 +366,7 @@ ENDMETHOD.
 * | [--->] IR_SPRAS                       TYPE        TY_R_LANGUS(optional)
 * | [--->] IV_PACKAGE_SIZE                TYPE        I (default =3000)
 * | [--->] IV_MAXIMUM_RESULTS             TYPE        I (default =0)
-* | [<-()] RO_TEXTS                       TYPE REF TO ZCL_API_LONGTEXT
+* | [<-()] RO_TEXTS                       TYPE REF TO ZCL_API_TXT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD read_multi.
 " Last changed: 01.04.2015 10:36:41 by Rinat Salakhov
@@ -565,7 +581,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>READ_SINGLE
+* | Static Public Method ZCL_API_TXT=>READ_SIMPLE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ID                          TYPE        THEAD-TDID
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
@@ -574,10 +590,37 @@ ENDMETHOD.
 * | [--->] IV_INITIAL_CLEAR               TYPE        BOOLE_D (default =ABAP_TRUE)
 * | [--->] IV_FORCE_SPACES                TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [--->] IV_SPRAS2                      TYPE        THEAD-TDSPRAS(optional)
-* | [<-->] CS_THEAD                       TYPE        THEAD(optional)
-* | [<-->] CT_TEXTS                       TYPE        LOP_TDLINE_TAB(optional)
-* | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
 * | [<-()] RV_TEXT                        TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD read_simple.
+  " Last changed: 08.2023 by Rinat Salakhov
+  read_single( EXPORTING
+                 iv_object = iv_object
+                 iv_name   = iv_name
+                 iv_spras  = iv_spras
+                 iv_id     = iv_id
+                 iv_force_spaces  = iv_force_spaces
+                 iv_initial_clear = iv_initial_clear
+                 iv_spras2        = iv_spras2
+               IMPORTING
+                 rv_text = rv_text ).
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_TXT=>READ_SINGLE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ID                          TYPE        THEAD-TDID
+* | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
+* | [--->] IV_NAME                        TYPE        CLIKE
+* | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT
+* | [--->] IV_INITIAL_CLEAR               TYPE        BOOLE_D (default =ABAP_TRUE)
+* | [--->] IV_FORCE_SPACES                TYPE        BOOLE_D (default =ABAP_FALSE)
+* | [--->] IV_SPRAS2                      TYPE        THEAD-TDSPRAS(optional)
+* | [<---] RV_TEXT                        TYPE        STRING
+* | [<-->] CS_THEAD                       TYPE        THEAD(optional)
+* | [<-->] CT_TEXTS                       TYPE        RE_T_TEXTLINE(optional)
+* | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD read_single.
   " Last changed: 05.2023 by Rinat Salakhov
@@ -591,10 +634,10 @@ METHOD read_single.
     CLEAR: rv_text, ct_lines[], ct_texts[].
   ENDIF.
 
-  cs_thead-tdid     = COND #( WHEN iv_id IS NOT INITIAL THEN iv_id ELSE cs_thead-tdid ).
-  cs_thead-tdobject = COND #( WHEN iv_object IS NOT INITIAL THEN iv_object ELSE cs_thead-tdobject ).
-  cs_thead-tdname   = COND thead-tdname( WHEN iv_name IS NOT INITIAL THEN iv_name ELSE cs_thead-tdname ).
-  cs_thead-tdspras  = COND #( WHEN iv_spras IS NOT INITIAL THEN iv_spras ELSE cs_thead-tdspras ).
+  IF iv_id     IS NOT INITIAL. cs_thead-tdid     = iv_id.     ENDIF.
+  IF iv_object IS NOT INITIAL. cs_thead-tdobject = iv_object. ENDIF.
+  IF iv_name   IS NOT INITIAL. cs_thead-tdname   = iv_name.   ENDIF.
+  IF iv_spras  IS NOT INITIAL. cs_thead-tdspras  = iv_spras.  ENDIF.
 
   CALL FUNCTION 'READ_TEXT'
     EXPORTING
@@ -641,10 +684,10 @@ METHOD read_single.
                            iv_spras = iv_spras2
                            iv_initial_clear = iv_initial_clear
                            iv_force_spaces = iv_force_spaces
+                 IMPORTING rv_text = rv_text
                  CHANGING cs_thead = cs_thead
                           ct_texts = ct_texts
-                          ct_lines = ct_lines
-                 RECEIVING rv_text = rv_text ).
+                          ct_lines = ct_lines ).
   ENDIF.
 
 
@@ -696,7 +739,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>READ_SMART
+* | Static Public Method ZCL_API_TXT=>READ_SMART
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_ID                          TYPE        THEAD-TDID
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
@@ -771,7 +814,7 @@ METHOD read_smart.
       lv_string = 'ICP' && lv_tdname_pattern.
       APPEND lv_string TO lr_name[].
 
-      DATA: lo_texts TYPE REF TO ZCL_API_LONGTEXT.
+      DATA: lo_texts TYPE REF TO ZCL_API_TXT.
       lo_texts = read_multi( ir_object = lr_object[]
                              ir_id     = lr_id[]
                              ir_name   = lr_name[]
@@ -804,7 +847,7 @@ METHOD read_smart.
     ELSE. "(no pattern, single text)
       " 4. New text! Save it to cache and quit
       CLEAR rv_text.
-      rv_text = read_single( iv_object = iv_object
+      rv_text = read_simple( iv_object = iv_object
                              iv_name   = iv_name
                              iv_spras  = iv_spras
                              iv_id     = iv_id ).
@@ -825,7 +868,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>REFRESH_CACHE
+* | Static Public Method ZCL_API_TXT=>REFRESH_CACHE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD refresh_cache.
@@ -836,7 +879,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>SAVE_TEXT
+* | Static Public Method ZCL_API_TXT=>SAVE_TEXT
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TEXT                        TYPE        ANY(optional)
 * | [--->] IV_ID                          TYPE        THEAD-TDID(optional)
@@ -846,16 +889,18 @@ ENDMETHOD.
 * | [--->] IS_HEADER_IN                   TYPE        THEAD(optional)
 * | [--->] IV_SAVEMODE_DIRECT             TYPE        BOOLE_D (default =ABAP_TRUE)
 * | [--->] IV_INSERT                      TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [<---] RS_HEADER_OUT                  TYPE        THEAD
 * | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
-* | [<-->] CT_TEXTS                       TYPE        LOP_TDLINE_TAB(optional)
-* | [<-()] RS_HEADER_OUT                  TYPE        THEAD
+* | [<-->] CT_TEXTS                       TYPE        RE_T_TEXTLINE(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD save_text.
 " Last changed: 27.04.2017 14:59:22 by Rinat Salakhov
 
   DATA:
 *        lt_lines TYPE tline_tab,
-        ls_header TYPE thead.
+        ls_header TYPE thead,
+        lv_tdline LIKE LINE OF ct_texts.
+  FIELD-SYMBOLS: <ls_line> LIKE LINE OF ct_lines.
 
   CLEAR: rs_header_out.
 
@@ -863,8 +908,10 @@ METHOD save_text.
     IF iv_text IS NOT INITIAL.
       ct_lines = string_to_tlines( iv_text ).
     ELSEIF ct_texts[] IS NOT INITIAL.
-      LOOP AT ct_texts INTO DATA(lv_tdline).
-        APPEND VALUE #( tdformat = '*' tdline = lv_tdline ) TO ct_lines[].
+      LOOP AT ct_texts INTO lv_tdline.
+        APPEND INITIAL LINE TO ct_lines[] ASSIGNING <ls_line>.
+        <ls_line>-tdformat = '*'.
+        <ls_line>-tdline   = lv_tdline.
       ENDLOOP.
     ENDIF.
   ENDIF.
@@ -904,7 +951,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>SHOW
+* | Static Public Method ZCL_API_TXT=>SHOW
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJECT                      TYPE        TDOBJECT(optional)
 * | [--->] IV_NAME                        TYPE        TDOBNAME(optional)
@@ -941,6 +988,7 @@ method SHOW.
         lv_max    TYPE I.
 
   FIELD-SYMBOLS: <ls_text> TYPE ty_s_texts_multi.
+  FIELD-SYMBOLS: <ls_spras_r> LIKE LINE OF lr_spras.
 
   _add_to_range iv_object lr_object[].
   _add_to_range iv_id     lr_id[].
@@ -948,7 +996,10 @@ method SHOW.
   _add_to_range iv_spras  lr_spras[].
 
   IF lr_spras[] IS INITIAL.
-    APPEND 'IEQ' && sy-langu TO lr_spras[].
+    APPEND INITIAL LINE TO lr_spras[] ASSIGNING <ls_spras_r>.
+    <ls_spras_r>-sign   = 'I'.
+    <ls_spras_r>-option = 'EQ'.
+    <ls_spras_r>-low    = sy-langu.
   ENDIF.
 
   IF iv_maximum_results IS INITIAL.
@@ -957,7 +1008,7 @@ method SHOW.
     lv_max = iv_maximum_results.
   ENDIF.
 
-  DATA: lo_texts TYPE REF TO ZCL_API_LONGTEXT.
+  DATA: lo_texts TYPE REF TO ZCL_API_TXT.
   lo_texts = read_multi( ir_object = lr_object[]
                         ir_id     = lr_id[]
                         ir_name   = lr_name[]
@@ -983,7 +1034,7 @@ endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>STRING_PARSE_O2O
+* | Static Public Method ZCL_API_TXT=>STRING_PARSE_O2O
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TEXT                        TYPE        ANY
 * | [<-()] RT_TLINES                      TYPE        TLINE_TAB
@@ -1060,7 +1111,7 @@ endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>STRING_REVERSE
+* | Static Public Method ZCL_API_TXT=>STRING_REVERSE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_STRING                      TYPE        ANY
 * | [<-()] RV_REVERSED_STRING             TYPE        STRING
@@ -1087,7 +1138,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_LONGTEXT=>STRING_TO_TLINES
+* | Static Public Method ZCL_API_TXT=>STRING_TO_TLINES
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_STRING                      TYPE        ANY
 * | [<-()] RV_TLINES                      TYPE        TLINE_TAB
