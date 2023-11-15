@@ -1,12 +1,14 @@
-class ZCL_MD_LOG definition
+class ZCL_API_LOG definition
+* SUPPORTS <7.4 *
   public
   create public .
 
 public section.
+*"* public components of class ZCL_API_LOG
+*"* do not include other source files here!!!
   type-pools ABAP .
 
   constants:
-  " CL_RSDME_ERROR - usefull
     BEGIN OF c_sbal_profile,
       single TYPE char1 VALUE '1',                          "#EC NOTEXT
       detlevel TYPE char1 VALUE '2',                          "#EC NOTEXT
@@ -24,7 +26,6 @@ public section.
   data MV_ALSORT type BALSORT .
   data MV_TIME_STMP type BALTIMSTMP .
   data MV_MSG_COUNT type BALCNTCUM .
-*  data CONTEXT type BAL_S_CONT .
   data MS_CONTEXT type BAL_S_CONT .
   data MS_PARAMS type BAL_S_PARM .
   data MV_HANDLE type BALLOGHNDL read-only .
@@ -33,7 +34,7 @@ public section.
 
   class-methods GET_SINGLETON
     returning
-      value(RO_LOG) type ref to ZCL_MD_LOG .
+      value(RO_LOG) type ref to ZCL_API_LOG .
   class-methods CALL_SLG1
     importing
       !IV_OBJ type CLIKE optional .
@@ -50,8 +51,7 @@ public section.
       !IV_DISPLAY_TYPE type CHAR1 optional
       !IV_USE_GRID type ABAP_BOOL optional
     returning
-      value(RO_LOG) type ref to ZCL_MD_LOG .
-*      !IO_EXCEPTION type ref to ZCX_BC_COMMON optional
+      value(RO_LOG) type ref to ZCL_API_LOG .
   methods ADD_MESSAGE
     importing
       !IS_BAL_MSG type BAL_S_MSG optional
@@ -59,8 +59,9 @@ public section.
       !IS_SYMSG type SYMSG optional
       !IT_BAPIRET type BAPIRET2_TAB optional
       !IS_BAPIRET type BAPIRET2 optional
+      !IS_T100KEY type SCX_T100KEY optional
       !IT_BATCH type ETTCD_MSG_TABTYPE optional
-      !IO_APPL_LOG type ref to ZCL_MD_LOG optional
+      !IO_APPL_LOG type ref to ZCL_API_LOG optional
       !IT_ANYMSG type ANY TABLE optional
       !IV_ANYMSG type ANY optional
       !IV_TEXTMSG1 type ANY optional
@@ -77,7 +78,7 @@ public section.
       !IV_SUBOBJECT type CLIKE optional
     preferred parameter IV_OBJECT
     returning
-      value(RO_LOG) type ref to ZCL_MD_LOG .
+      value(RO_LOG) type ref to ZCL_API_LOG .
   methods SHOW
     importing
       !IV_TITLE type BALTITLE optional
@@ -102,7 +103,7 @@ public section.
       !IV_EXTNUMBER type CLIKE optional
       !IV_INSTANCE_TYPE type CLIKE optional
     returning
-      value(RO_LOG) type ref to ZCL_MD_LOG .
+      value(RO_LOG) type ref to ZCL_API_LOG .
   methods GET_MESSAGE
     importing
       !IV_MSGTY type SYMSGTY optional
@@ -148,7 +149,7 @@ public section.
   methods SHOW_AND_CLEAR
     importing
       !IV_SHOW_ONLY_ERRORS type ABAP_BOOL default ABAP_FALSE
-      !IO_SAVE_PROTOCOL type ref to ZCL_MD_LOG optional
+      !IO_SAVE_PROTOCOL type ref to ZCL_API_LOG optional
       !IV_SAVE_HANDLE type ABAP_BOOL default ABAP_FALSE
     preferred parameter IV_SAVE_HANDLE .
 protected section.
@@ -161,24 +162,25 @@ protected section.
   data MV_CONTROL_HANDLE type BALCNTHNDL .
 private section.
 
-  class-data MO_SINGLETON type ref to ZCL_MD_LOG .
+  class-data MO_SINGLETON type ref to ZCL_API_LOG .
 ENDCLASS.
 
 
 
-CLASS ZCL_MD_LOG IMPLEMENTATION.
+CLASS ZCL_API_LOG IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->ADD_MESSAGE
+* | Instance Public Method ZCL_API_LOG->ADD_MESSAGE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IS_BAL_MSG                     TYPE        BAL_S_MSG(optional)
 * | [--->] IS_SY                          TYPE        SYST (default =SY)
 * | [--->] IS_SYMSG                       TYPE        SYMSG(optional)
 * | [--->] IT_BAPIRET                     TYPE        BAPIRET2_TAB(optional)
 * | [--->] IS_BAPIRET                     TYPE        BAPIRET2(optional)
+* | [--->] IS_T100KEY                     TYPE        SCX_T100KEY(optional)
 * | [--->] IT_BATCH                       TYPE        ETTCD_MSG_TABTYPE(optional)
-* | [--->] IO_APPL_LOG                    TYPE REF TO ZCL_MD_LOG(optional)
+* | [--->] IO_APPL_LOG                    TYPE REF TO ZCL_API_LOG(optional)
 * | [--->] IT_ANYMSG                      TYPE        ANY TABLE(optional)
 * | [--->] IV_ANYMSG                      TYPE        ANY(optional)
 * | [--->] IV_TEXTMSG1                    TYPE        ANY(optional)
@@ -233,6 +235,17 @@ METHOD add_message.
     ls_bal_msg-msgv2 = is_symsg-msgv2.
     ls_bal_msg-msgv3 = is_symsg-msgv3.
     ls_bal_msg-msgv4 = is_symsg-msgv4.
+    add_message( is_bal_msg = ls_bal_msg ).
+  ENDIF.
+
+  IF is_t100key IS SUPPLIED.
+    ls_bal_msg-msgty = iv_textmsgty.
+    ls_bal_msg-msgid = is_t100key-msgid.
+    ls_bal_msg-msgno = is_t100key-msgno.
+    ls_bal_msg-msgv1 = is_t100key-attr1.
+    ls_bal_msg-msgv2 = is_t100key-attr2.
+    ls_bal_msg-msgv3 = is_t100key-attr3.
+    ls_bal_msg-msgv4 = is_t100key-attr4.
     add_message( is_bal_msg = ls_bal_msg ).
   ENDIF.
 
@@ -400,6 +413,7 @@ METHOD add_message.
   IF
      is_bal_msg IS INITIAL AND
      is_symsg IS INITIAL AND
+     is_t100key IS INITIAL AND
      it_bapiret IS INITIAL AND
      is_bapiret IS INITIAL AND
      it_batch IS INITIAL AND
@@ -432,7 +446,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_LOG=>CALL_SLG1
+* | Static Public Method ZCL_API_LOG=>CALL_SLG1
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJ                         TYPE        CLIKE(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -455,14 +469,14 @@ ENDMETHOD.
 
 *SELECTION-SCREEN PUSHBUTTON 2(10) TEXT-LOG USER-COMMAND uclg. " TEXT-LOG = 'Show Log'
 *AT SELECTION-SCREEN.
-*  IF sy-ucomm = 'UCLG'. ZCL_MD_LOG=>call_slg1( sy-repid ). ENDIF.
+*  IF sy-ucomm = 'UCLG'. ZCL_API_LOG=>call_slg1( sy-repid ). ENDIF.
 
 
   ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->CLEAR
+* | Instance Public Method ZCL_API_LOG->CLEAR
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD clear.
@@ -483,7 +497,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->CONSTRUCTOR
+* | Instance Public Method ZCL_API_LOG->CONSTRUCTOR
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_HANDLER                     TYPE        BALLOGHNDL
 * | [--->] IV_TIMESTAMP                   TYPE        BALTIMSTMP(optional)
@@ -506,7 +520,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_LOG=>CREATE_LOG
+* | Static Public Method ZCL_API_LOG=>CREATE_LOG
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJECT                      TYPE        BALOBJ_D(optional)
 * | [--->] IV_SUBOBJECT                   TYPE        BALSUBOBJ(optional)
@@ -514,7 +528,7 @@ ENDMETHOD.
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1(optional)
 * | [--->] IV_USE_GRID                    TYPE        ABAP_BOOL(optional)
-* | [<-()] RO_LOG                         TYPE REF TO ZCL_MD_LOG
+* | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD create_log.
 
@@ -580,7 +594,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->GET_MESSAGE
+* | Instance Public Method ZCL_API_LOG->GET_MESSAGE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_MSGTY                       TYPE        SYMSGTY(optional)
 * | [--->] IV_MSGID                       TYPE        SYMSGID(optional)
@@ -640,7 +654,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->GET_MESSAGES
+* | Instance Public Method ZCL_API_LOG->GET_MESSAGES
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RT_MSG                         TYPE        BAL_T_MSG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -692,7 +706,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->GET_MESSAGES_RET2
+* | Instance Public Method ZCL_API_LOG->GET_MESSAGES_RET2
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RT_BAPIRET2                    TYPE        BAPIRET2_T
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -718,9 +732,9 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_LOG=>GET_SINGLETON
+* | Static Public Method ZCL_API_LOG=>GET_SINGLETON
 * +-------------------------------------------------------------------------------------------------+
-* | [<-()] RO_LOG                         TYPE REF TO ZCL_MD_LOG
+* | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method GET_SINGLETON.
 
@@ -734,7 +748,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->HAS_ERRORS
+* | Instance Public Method ZCL_API_LOG->HAS_ERRORS
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RV_VALUE                       TYPE        ABAP_BOOL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -751,7 +765,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->HAS_MESSAGES
+* | Instance Public Method ZCL_API_LOG->HAS_MESSAGES
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_MSG_TYPE                    TYPE        SYMSGTY(optional)
 * | [<-()] RV_VALUE                       TYPE        ABAP_BOOL
@@ -768,7 +782,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->HAS_WARNINGS
+* | Instance Public Method ZCL_API_LOG->HAS_WARNINGS
 * +-------------------------------------------------------------------------------------------------+
 * | [<-()] RV_VALUE                       TYPE        ABAP_BOOL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -784,11 +798,11 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_LOG=>INIT_POPUP_LOG
+* | Static Public Method ZCL_API_LOG=>INIT_POPUP_LOG
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_OBJECT                      TYPE        CLIKE(optional)
 * | [--->] IV_SUBOBJECT                   TYPE        CLIKE(optional)
-* | [<-()] RO_LOG                         TYPE REF TO ZCL_MD_LOG
+* | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD init_popup_log.
   DATA: lv_object	   TYPE balobj_d,
@@ -808,14 +822,14 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_MD_LOG=>LOAD
+* | Static Public Method ZCL_API_LOG=>LOAD
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IS_LOG_FILTER                  TYPE        BAL_S_LFIL(optional)
 * | [--->] IV_OBJECT                      TYPE        BALOBJ_D(optional)
 * | [--->] IV_SUBOBJECT                   TYPE        BALSUBOBJ(optional)
 * | [--->] IV_EXTNUMBER                   TYPE        CLIKE(optional)
 * | [--->] IV_INSTANCE_TYPE               TYPE        CLIKE(optional)
-* | [<-()] RO_LOG                         TYPE REF TO ZCL_MD_LOG
+* | [<-()] RO_LOG                         TYPE REF TO ZCL_API_LOG
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD load.
 
@@ -939,7 +953,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->MESSAGE_COUNT
+* | Instance Public Method ZCL_API_LOG->MESSAGE_COUNT
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_MSG_TYPE                    TYPE        SYMSGTY(optional)
 * | [<-()] RV_COUNT                       TYPE        I
@@ -982,7 +996,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->REFRESH
+* | Instance Public Method ZCL_API_LOG->REFRESH
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD refresh.
@@ -1005,7 +1019,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->SAVE
+* | Instance Public Method ZCL_API_LOG->SAVE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_UPD_TASK                    TYPE        BOOLEAN (default =ABAP_FALSE)
 * | [--->] IV_SAVE_ALL                    TYPE        BOOLEAN (default =ABAP_FALSE)
@@ -1040,7 +1054,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->SET_PROFILE
+* | Instance Public Method ZCL_API_LOG->SET_PROFILE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1 (default =C_SBAL_PROFILE-SINGLE)
 * | [--->] IV_TREE_WIDTH                  TYPE        I(optional)
@@ -1106,7 +1120,7 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->SHOW
+* | Instance Public Method ZCL_API_LOG->SHOW
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TITLE                       TYPE        BALTITLE(optional)
 * | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1 (default =C_SBAL_PROFILE-SINGLE)
@@ -1174,10 +1188,10 @@ ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_MD_LOG->SHOW_AND_CLEAR
+* | Instance Public Method ZCL_API_LOG->SHOW_AND_CLEAR
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_SHOW_ONLY_ERRORS            TYPE        ABAP_BOOL (default =ABAP_FALSE)
-* | [--->] IO_SAVE_PROTOCOL               TYPE REF TO ZCL_MD_LOG(optional)
+* | [--->] IO_SAVE_PROTOCOL               TYPE REF TO ZCL_API_LOG(optional)
 * | [--->] IV_SAVE_HANDLE                 TYPE        ABAP_BOOL (default =ABAP_FALSE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD show_and_clear.
