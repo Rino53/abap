@@ -1,19 +1,20 @@
 class ZCL_API_BDC definition
+* SUPPORTS < 7.4 *
   public
   final
   create public .
 
+public section.
 *"* public components of class ZCL_API_BDC
 *"* do not include other source files here!!!
-public section.
 
-  data DELIMITER type CHAR1 value '_' ##NO_TEXT.
+  data DELIMITER type CHAR1 value '_'. "#EC NOTEXT .
   data TCODE type SYTCODE .
   data DATA type TAB_BDCDATA .
   data MSGCOLL type TAB_BDCMSGCOLL .
   data OPTIONS type CTU_PARAMS .
-  constants MODE type BDCMODE value 'E' ##NO_TEXT.
-  constants UPDATE type BDCUPMODE value 'S' ##NO_TEXT.
+  constants MODE type BDCMODE value 'E'. "#EC NOTEXT
+  constants UPDATE type BDCUPMODE value 'S'. "#EC NOTEXT
 
   methods CONSTRUCTOR
     importing
@@ -40,7 +41,9 @@ public section.
     preferred parameter PAR .
   methods CALL
     importing
-      !CHECK_AUTH type BOOLE_D default ABAP_FALSE .
+      !CHECK_AUTH type BOOLE_D default ABAP_FALSE
+    returning
+      value(BDCMSGCOLL) type TAB_BDCMSGCOLL .
   class-methods BAPI_MSGCOLL
     changing
       !BAPIRET_T type BAPIRET2_T optional
@@ -183,6 +186,7 @@ endmethod.
 * | Instance Public Method ZCL_API_BDC->CALL
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] CHECK_AUTH                     TYPE        BOOLE_D (default =ABAP_FALSE)
+* | [<-()] BDCMSGCOLL                     TYPE        TAB_BDCMSGCOLL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD call.
 
@@ -205,6 +209,8 @@ METHOD call.
       USING   data
       OPTIONS FROM options
       MESSAGES INTO msgcoll[].
+
+    bdcmsgcoll[] = msgcoll[].
 
 ***  ENDIF.
 
@@ -238,6 +244,22 @@ method constructor.
   options-nobiend   = ''.
 
   delimiter = iv_delimiter.
+
+*  Component Meaning
+*    DISMODE Processing mode. Values as for the MODE addition.
+*    UPMODE Update mode for processing. Values as for the UPDATE addition.
+*    CATTMODE CATT mode for processing. While batch input is used mostly for data transfer,
+*       CATT processes are more complex transactions, since they are reusable tests.
+*       Values: " " (no CATT mode), "N" (CATT without single screen control), "A" (CATT with single screen control).
+*    DEFSIZE Selects whether the screens of the called transaction are displayed in the standard screen size.
+*       Values: "X" (standard size), " " (current size).
+*    RACOMMIT Selects whether the COMMIT WORK statement terminates processing or not.
+*       Values: " " (COMMIT WORK terminates processing), "X" (COMMIT WORK does not terminate processing).
+*    NOBINPT Selection for the system field sy-binpt.
+*       Values: " " (sy-binpt contains "X" in the called transaction), "X" (sy-binpt contains " " in the called transaction).
+*    NOBIEND Selection for the system field sy-binpt.
+*       Values: " " (sy-binpt contains "X" after the end of the batch input table data in the called transaction ) "X" (sy-binpt contains " " after the end of the data in the called transaction).
+
 
 endmethod.
 
@@ -376,18 +398,18 @@ endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_API_BDC->_EXAMPLES
+* | Static Private Method ZCL_API_BDC=>_EXAMPLES
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-method _EXAMPLES.
+METHOD _examples.
 
-  DATA: lo_cor2 TYPE REF TO zcl_api_bdc,
+  DATA: lo_bdc TYPE REF TO zcl_api_bdc,
         caufvd TYPE caufvd.
-        CREATE OBJECT lo_cor2 EXPORTING tcode = 'COR2'.
-        lo_cor2->options-updmode = 'S'.
-        lo_cor2->screen( 'SAPLCOKO|5110|=OMLA' ).
-        lo_cor2->field( EXPORTING fnam = 'CAUFVD-AUFNR' fval = caufvd-aufnr ).
-        lo_cor2->call( check_auth = abap_true ).
+  CREATE OBJECT lo_bdc EXPORTING tcode = 'COR2'.
+  lo_bdc->options-updmode = 'S'.
+  lo_bdc->screen( 'SAPLCOKO|5110|=OMLA' ).
+  lo_bdc->field( EXPORTING fnam = 'CAUFVD-AUFNR' fval = caufvd-aufnr ).
+  lo_bdc->call( check_auth = abap_true ).
 
 
   DATA: iv_aufnr TYPE aufnr,
@@ -395,56 +417,54 @@ method _EXAMPLES.
   " change orders batch (charg) with batch input
 
   IF iv_aufnr IS NOT INITIAL AND iv_charg IS NOT INITIAL.
-*    DATA: lo_cor2 TYPE REF TO zcl_api_bdc.
-    CREATE OBJECT lo_cor2 EXPORTING tcode = 'COR2'.
-    lo_cor2->options-updmode = 'S'.
-    lo_cor2->options-nobinpt = abap_false.
-    lo_cor2->options-dismode = 'N'.
-*    lo_cor2->options-updmode = 'A'.
-    lo_cor2->screen( 'SAPLCOKO|5110|/00' ).
-    lo_cor2->field( EXPORTING fnam = 'CAUFVD-AUFNR' fval = iv_aufnr ).
-    lo_cor2->screen( 'SAPLCOKO|5115|=KOWE' ).
-    lo_cor2->screen( 'SAPLCOKO|5115|/00' ).
-    lo_cor2->field( EXPORTING fnam = 'AFPOD-CHARG' fval = iv_charg ).
+    CREATE OBJECT lo_bdc EXPORTING tcode = 'COR2'.
+    lo_bdc->options-updmode = 'S'.
+    lo_bdc->options-nobinpt = abap_false.
+    lo_bdc->options-dismode = 'N'.
+*    lo_bdc->options-updmode = 'A'.
+    lo_bdc->screen( 'SAPLCOKO|5110|/00' ).
+    lo_bdc->field( EXPORTING fnam = 'CAUFVD-AUFNR' fval = iv_aufnr ).
+    lo_bdc->screen( 'SAPLCOKO|5115|=KOWE' ).
+    lo_bdc->screen( 'SAPLCOKO|5115|/00' ).
+    lo_bdc->field( EXPORTING fnam = 'AFPOD-CHARG' fval = iv_charg ).
 
-    lo_cor2->screen( 'SAPLCOKO|5115|=OMLA' ).
-    lo_cor2->screen( 'SAPLCOMK|5120|=BACK' ).
-    lo_cor2->field( EXPORTING fnam = 'RESBD-CHARG(01)' fval = iv_charg ).
-    lo_cor2->screen( 'SAPLCOMD|5100|=BU' ).
+    lo_bdc->screen( 'SAPLCOKO|5115|=OMLA' ).
+    lo_bdc->screen( 'SAPLCOMK|5120|=BACK' ).
+    lo_bdc->field( EXPORTING fnam = 'RESBD-CHARG(01)' fval = iv_charg ).
+    lo_bdc->screen( 'SAPLCOMD|5100|=BU' ).
 
-    lo_cor2->screen( 'SAPLCOKO|5115|=BU' ).
+    lo_bdc->screen( 'SAPLCOKO|5115|=BU' ).
 
 *    go_sequence->dequeue_sequence( ). " before cor2
-    lo_cor2->call( check_auth = abap_true ).
+    lo_bdc->call( check_auth = abap_true ).
   ENDIF.
 
 
   CHECK caufvd-plnbez IS NOT INITIAL.
 
-  DATA: lo_qe51n TYPE REF TO zcl_api_bdc.
-  CREATE OBJECT lo_qe51n EXPORTING tcode = 'QE51N'.
-  lo_qe51n->options-updmode = 'S'.
-  lo_qe51n->options-nobinpt = abap_true.
-  lo_qe51n->options-defsize = abap_false.
+  CREATE OBJECT lo_bdc EXPORTING tcode = 'QE51N'.
+  lo_bdc->options-updmode = 'S'.
+  lo_bdc->options-nobinpt = abap_true.
+  lo_bdc->options-defsize = abap_false.
 
   " Exclude work centers
-  lo_qe51n->screen( 'SAPLQEES|0500|=%022' ).
-  lo_qe51n->screen( 'SAPLALDB|3000|=NOSV' ).
-  lo_qe51n->screen( 'SAPLALDB|3000|=ACPT' ).
-  lo_qe51n->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'EXTERN' ).
-  lo_qe51n->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'F&E' ).
-  lo_qe51n->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'LABOR' ).
+  lo_bdc->screen( 'SAPLQEES|0500|=%022' ).
+  lo_bdc->screen( 'SAPLALDB|3000|=NOSV' ).
+  lo_bdc->screen( 'SAPLALDB|3000|=ACPT' ).
+  lo_bdc->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'EXTERN' ).
+  lo_bdc->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'F&E' ).
+  lo_bdc->field( EXPORTING fnam = 'RSCSEL_255-SLOW_E(01)' fval = 'LABOR' ).
 
   " Pass other params
-  lo_qe51n->screen( 'SAPLQEES|0500|=CRET' ).
-  lo_qe51n->field( EXPORTING fnam = 'QL_WERKS-LOW' fval = caufvd-werks ).
-  lo_qe51n->field( EXPORTING fnam = 'QL_MATNR-LOW' fval = caufvd-plnbez ).
-  lo_qe51n->field( EXPORTING fnam = 'QL_CHARG-LOW' fval = 'charg' ).
-  lo_qe51n->field( EXPORTING fnam = 'QL_HERKT-LOW' fval = '03' ). " insp lot origin
-  lo_qe51n->field( EXPORTING fnam = 'QL_HERKT-HIGH' fval = '04' ).
-  lo_qe51n->field( EXPORTING fnam = 'QL_MAX_R' fval = '99999' ).
+  lo_bdc->screen( 'SAPLQEES|0500|=CRET' ).
+  lo_bdc->field( EXPORTING fnam = 'QL_WERKS-LOW' fval = caufvd-werks ).
+  lo_bdc->field( EXPORTING fnam = 'QL_MATNR-LOW' fval = caufvd-plnbez ).
+  lo_bdc->field( EXPORTING fnam = 'QL_CHARG-LOW' fval = 'charg' ).
+  lo_bdc->field( EXPORTING fnam = 'QL_HERKT-LOW' fval = '03' ). " insp lot origin
+  lo_bdc->field( EXPORTING fnam = 'QL_HERKT-HIGH' fval = '04' ).
+  lo_bdc->field( EXPORTING fnam = 'QL_MAX_R' fval = '99999' ).
 
-  lo_qe51n->call( check_auth = abap_true ).
+  lo_bdc->call( check_auth = abap_true ).
 
-endmethod.
+ENDMETHOD.
 ENDCLASS.
