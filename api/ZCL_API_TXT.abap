@@ -1,4 +1,5 @@
 class ZCL_API_TXT definition
+* SUPPORTS <7.4 *
   public
   create private .
 
@@ -42,8 +43,7 @@ public section.
     exporting
       !RV_ERROR type CHAR1
     changing
-      !SRC_HEADERS type EMMA_THEAD_T optional.
-
+      !SRC_HEADERS type EMMA_THEAD_T optional .
   class-methods READ_SMART
     importing
       !IV_ID type THEAD-TDID
@@ -55,10 +55,10 @@ public section.
       value(RV_TEXT) type STRING .
   class-methods READ_SINGLE
     importing
-      !IV_ID type THEAD-TDID
+      !IV_ID type THEAD-TDID default 'ST'
       !IV_SPRAS type THEAD-TDSPRAS default SY-LANGU
       !IV_NAME type CLIKE
-      !IV_OBJECT type THEAD-TDOBJECT
+      !IV_OBJECT type THEAD-TDOBJECT default 'TEXT'
       !IV_INITIAL_CLEAR type BOOLE_D default ABAP_TRUE
       !IV_FORCE_SPACES type BOOLE_D default ABAP_FALSE
       !IV_SPRAS2 type THEAD-TDSPRAS optional
@@ -66,21 +66,20 @@ public section.
       !RV_TEXT type STRING
     changing
       !CS_THEAD type THEAD optional
-      !CT_TEXTS type RE_T_TEXTLINE  optional " LOP_TDLINE_TAB
-      !CT_LINES type TLINE_TAB optional.
-
-  class-methods READ_simple
+      !CT_TEXTS type RE_T_TEXTLINE optional
+      !CT_LINES type TLINE_TAB optional
+      !CT_SOLI type SOLI_TAB optional .
+  class-methods READ_SIMPLE
     importing
-      !IV_ID type THEAD-TDID
+      !IV_ID type THEAD-TDID default 'ST'
       !IV_SPRAS type THEAD-TDSPRAS default SY-LANGU
       !IV_NAME type CLIKE
-      !IV_OBJECT type THEAD-TDOBJECT
+      !IV_OBJECT type THEAD-TDOBJECT default 'TEXT'
       !IV_INITIAL_CLEAR type BOOLE_D default ABAP_TRUE
       !IV_FORCE_SPACES type BOOLE_D default ABAP_FALSE
       !IV_SPRAS2 type THEAD-TDSPRAS optional
-    RETURNING
-      VALUE(RV_TEXT) type STRING.
-
+    returning
+      value(RV_TEXT) type STRING .
   class-methods SHOW
     importing
       !IV_OBJECT type TDOBJECT optional
@@ -116,8 +115,7 @@ public section.
       !RS_HEADER_OUT type THEAD
     changing
       !CT_LINES type TLINE_TAB optional
-      !CT_TEXTS type RE_T_TEXTLINE  optional. "LOP_TDLINE_TAB
-
+      !CT_TEXTS type RE_T_TEXTLINE optional .
   class-methods DELETE_TEXT
     importing
       !IV_ID type THEAD-TDID optional
@@ -138,6 +136,13 @@ public section.
       !IV_STRING type ANY
     returning
       value(RV_TLINES) type TLINE_TAB .
+  class-methods TLINES_TO_STRING
+    importing
+      !IT_TLINES type TLINE_TAB
+      !IV_FORCE_SPACES type ABAP_BOOL optional
+    preferred parameter IT_TLINES
+    returning
+      value(RV_STRING) type STRING .
   class-methods STRING_PARSE_O2O
     importing
       !IV_TEXT type ANY
@@ -583,10 +588,10 @@ ENDMETHOD.
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_TXT=>READ_SIMPLE
 * +-------------------------------------------------------------------------------------------------+
-* | [--->] IV_ID                          TYPE        THEAD-TDID
+* | [--->] IV_ID                          TYPE        THEAD-TDID (default ='ST')
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
 * | [--->] IV_NAME                        TYPE        CLIKE
-* | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT
+* | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT (default ='TEXT')
 * | [--->] IV_INITIAL_CLEAR               TYPE        BOOLE_D (default =ABAP_TRUE)
 * | [--->] IV_FORCE_SPACES                TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [--->] IV_SPRAS2                      TYPE        THEAD-TDSPRAS(optional)
@@ -610,10 +615,10 @@ ENDMETHOD.
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_TXT=>READ_SINGLE
 * +-------------------------------------------------------------------------------------------------+
-* | [--->] IV_ID                          TYPE        THEAD-TDID
+* | [--->] IV_ID                          TYPE        THEAD-TDID (default ='ST')
 * | [--->] IV_SPRAS                       TYPE        THEAD-TDSPRAS (default =SY-LANGU)
 * | [--->] IV_NAME                        TYPE        CLIKE
-* | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT
+* | [--->] IV_OBJECT                      TYPE        THEAD-TDOBJECT (default ='TEXT')
 * | [--->] IV_INITIAL_CLEAR               TYPE        BOOLE_D (default =ABAP_TRUE)
 * | [--->] IV_FORCE_SPACES                TYPE        BOOLE_D (default =ABAP_FALSE)
 * | [--->] IV_SPRAS2                      TYPE        THEAD-TDSPRAS(optional)
@@ -621,6 +626,7 @@ ENDMETHOD.
 * | [<-->] CS_THEAD                       TYPE        THEAD(optional)
 * | [<-->] CT_TEXTS                       TYPE        RE_T_TEXTLINE(optional)
 * | [<-->] CT_LINES                       TYPE        TLINE_TAB(optional)
+* | [<-->] CT_SOLI                        TYPE        SOLI_TAB(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD read_single.
   " Last changed: 05.2023 by Rinat Salakhov
@@ -659,23 +665,12 @@ METHOD read_single.
       wrong_access_to_archive = 7
       OTHERS                  = 8.
   IF sy-subrc = 0.
-    CLEAR lv_longtext.
     LOOP AT ct_lines ASSIGNING <ls_line> WHERE tdformat <> '/*'. "comment line
-      IF iv_force_spaces = abap_true
-        OR <ls_line>-tdformat = ''
-        OR <ls_line>-tdformat = '/'
-        OR <ls_line>-tdformat = '/='.
-        CONCATENATE lv_longtext <ls_line>-tdline INTO lv_longtext SEPARATED BY space.
-      ELSE.
-        CONCATENATE lv_longtext <ls_line>-tdline INTO lv_longtext.
-      ENDIF.
-      CONDENSE lv_longtext.
       APPEND <ls_line>-tdline TO ct_texts.
+      APPEND <ls_line>-tdline TO ct_soli.
     ENDLOOP.
 
-    IF lv_longtext IS NOT INITIAL.
-      rv_text = lv_longtext.
-    ENDIF.
+    rv_text = tlines_to_string( ct_lines ).
 
   ELSEIF iv_spras2 IS NOT INITIAL.
     read_single( EXPORTING iv_id = iv_id
@@ -689,51 +684,6 @@ METHOD read_single.
                           ct_texts = ct_texts
                           ct_lines = ct_lines ).
   ENDIF.
-
-
-
-***    Some format keys are predefined by SAPscript. They have a predefined meaning and can be used in all texts:
-***    * default paragraph
-***    The format definitions which are specified for the paragraph defined in the assigned style or form as the
-***    default paragraph are used for the output formatting of the paragraph involved.
-***
-***    / new line
-***    The subsequent text is written to a new line during output formatting. The formatting specifications of the
-***    last paragraph format apply.
-***
-***    /: Command line
-***    The characters contained in the actual text line are not output as text but are regarded as a control command.
-***    They are not interpreted or executed until output formatting of the text. Control commands must always fit into
-***    a line fully. It is not allowed to spread them over subsequent lines. The SAPscript editor does not format control statement lines.
-***
-***    /* Comment line
-***    When formatting a text for output, the system does not output this line.
-***
-***    = long line
-***    This line is not subject to the line formatting in the SAPscript editor. The text contained in this line is also
-***    appended directly to the character of the preceding text line which was output last. If this is not required,
-***    there must be at least one blank at the beginning of the extended line.
-***
-***    /= long line with line feed
-***    This line is treated just as = (long line), but when formatting for output, the subsequent text appears in a new line.
-***
-***    ( raw line
-***    The SAPscript composer does not interpret the subsequent line when formatting the text for output. This means that
-***    character formats, symbols, tab characters, masking characters, or hypertext links which may be contained in this
-***    line are not evaluated and are therefore passed unchanged to the output device. The text contained in this line is also
-***    appended directly to the character of the preceding text line which was output last. If this is not required, there must
-***    be at least one blank at the beginning of the extended line.
-***
-***    /( raw line with line feed
-***    This line is treated just as ( (raw line), but when formatting for output, the subsequent text appears on a new line.
-***
-***    >x fix line
-***    The line is not ready for input in the SAPscript editor. It can also not be deleted or separated. You can only create
-***    fixed lines with a program . You can therefore give a text a fixed structure, for example, which cannot be changed by the user.
-***    You can use any number or letter for the 'x'. You can therefore separate different sub-headings, for example.
-***    If several fixed lines occur consecutively with the same indicator, they are regarded as a unit by the SAPscript editor.
-***    It is not possible to insert anything between these lines in the editor. In the case of fixed lines, SAPscript print
-***    formatting interprets the first two characters of the line as a paragraph format for formatting. You therefore need to enter the required paragraph format or blank here.
 
 ENDMETHOD.
 
@@ -1191,4 +1141,77 @@ ENDMETHOD.
   rv_tlines[] = lt_lines[].
 
 ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_TXT=>TLINES_TO_STRING
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_TLINES                      TYPE        TLINE_TAB
+* | [--->] IV_FORCE_SPACES                TYPE        ABAP_BOOL(optional)
+* | [<-()] RV_STRING                      TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD tlines_to_string.
+    " Last changed: 09.2023 by Rinat Salakhov
+
+    FIELD-SYMBOLS: <ls_line> TYPE tline.
+
+    CLEAR rv_string.
+    LOOP AT it_tlines ASSIGNING <ls_line> WHERE tdformat <> '/*'. "comment line
+      IF iv_force_spaces = abap_true
+        OR <ls_line>-tdformat = ''
+        OR <ls_line>-tdformat = '/'
+        OR <ls_line>-tdformat = '/='.
+        CONCATENATE rv_string <ls_line>-tdline INTO rv_string SEPARATED BY space.
+      ELSE.
+        CONCATENATE rv_string <ls_line>-tdline INTO rv_string.
+      ENDIF.
+      CONDENSE rv_string.
+    ENDLOOP.
+
+
+***    Some format keys are predefined by SAPscript. They have a predefined meaning and can be used in all texts:
+***    * default paragraph
+***    The format definitions which are specified for the paragraph defined in the assigned style or form as the
+***    default paragraph are used for the output formatting of the paragraph involved.
+***
+***    / new line
+***    The subsequent text is written to a new line during output formatting. The formatting specifications of the
+***    last paragraph format apply.
+***
+***    /: Command line
+***    The characters contained in the actual text line are not output as text but are regarded as a control command.
+***    They are not interpreted or executed until output formatting of the text. Control commands must always fit into
+***    a line fully. It is not allowed to spread them over subsequent lines. The SAPscript editor does not format control statement lines.
+***
+***    /* Comment line
+***    When formatting a text for output, the system does not output this line.
+***
+***    = long line
+***    This line is not subject to the line formatting in the SAPscript editor. The text contained in this line is also
+***    appended directly to the character of the preceding text line which was output last. If this is not required,
+***    there must be at least one blank at the beginning of the extended line.
+***
+***    /= long line with line feed
+***    This line is treated just as = (long line), but when formatting for output, the subsequent text appears in a new line.
+***
+***    ( raw line
+***    The SAPscript composer does not interpret the subsequent line when formatting the text for output. This means that
+***    character formats, symbols, tab characters, masking characters, or hypertext links which may be contained in this
+***    line are not evaluated and are therefore passed unchanged to the output device. The text contained in this line is also
+***    appended directly to the character of the preceding text line which was output last. If this is not required, there must
+***    be at least one blank at the beginning of the extended line.
+***
+***    /( raw line with line feed
+***    This line is treated just as ( (raw line), but when formatting for output, the subsequent text appears on a new line.
+***
+***    >x fix line
+***    The line is not ready for input in the SAPscript editor. It can also not be deleted or separated. You can only create
+***    fixed lines with a program . You can therefore give a text a fixed structure, for example, which cannot be changed by the user.
+***    You can use any number or letter for the 'x'. You can therefore separate different sub-headings, for example.
+***    If several fixed lines occur consecutively with the same indicator, they are regarded as a unit by the SAPscript editor.
+***    It is not possible to insert anything between these lines in the editor. In the case of fixed lines, SAPscript print
+***    formatting interprets the first two characters of the line as a paragraph format for formatting. You therefore need to enter the required paragraph format or blank here.
+
+
+  ENDMETHOD.
 ENDCLASS.
