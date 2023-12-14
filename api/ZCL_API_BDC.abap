@@ -62,6 +62,11 @@ public section.
       !EV_SYSTEM_TEXT type BSVX-STTXT
       !EV_USER_TEXT type BSVX-STTXT
       !EV_STONR type TJ30-STONR .
+  class-methods INIT_TCODE
+    importing
+      !IV_TCODE type ANY optional
+    returning
+      value(RO_INST) type ref to ZCL_API_BDC .
 protected section.
 *"* protected components of class ZCL_API_BDC
 *"* do not include other source files here!!!
@@ -349,6 +354,27 @@ endmethod.
     ENDIF.
 
   ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_BDC=>INIT_TCODE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TCODE                       TYPE        ANY(optional)
+* | [<-()] RO_INST                        TYPE REF TO ZCL_API_BDC
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD init_tcode.
+  " #Rinat Salakhov @11.2023
+
+  CREATE OBJECT ro_inst
+    EXPORTING
+      tcode = iv_tcode.
+
+  CHECK ro_inst IS BOUND.
+  ro_inst->options-defsize = abap_false.
+  ro_inst->options-nobiend = abap_true.
+*  ro_inst->options-dismode = 'N'.
+
+ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
