@@ -131,6 +131,17 @@ public section.
       !IV_STRING type ANY
     returning
       value(RV_REVERSED_STRING) type STRING .
+  class CL_ABAP_CHAR_UTILITIES definition load .
+  class-methods SOLI_COMPRESS
+    importing
+      !IV_LINE_BREAKER type CLIKE default CL_ABAP_CHAR_UTILITIES=>NEWLINE
+    changing
+      value(CT_SOLI) type SOLI_TAB .
+  class-methods STRING_TO_SOLI
+    importing
+      !IV_STRING type ANY
+    returning
+      value(RT_SOLI) type SOLI_TAB .
   class-methods STRING_TO_TLINES
     importing
       !IV_STRING type ANY
@@ -984,6 +995,43 @@ endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_TXT=>SOLI_COMPRESS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_LINE_BREAKER                TYPE        CLIKE (default =CL_ABAP_CHAR_UTILITIES=>NEWLINE)
+* | [<-->] CT_SOLI                        TYPE        SOLI_TAB
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD soli_compress.
+    " Last changed: 11.2023 by Rinat Salakhov
+
+***    Compress soli lines with linebreaker:
+***    |Line 1 text           |
+***    |Line 2 very long text |
+***    |3_LINE                |
+***    =>
+***    |Line 1 text#Line 2 ver|
+***    |y long text#3_LINE    |
+
+
+    DATA: ls_soli TYPE soli,
+          lv_fulltext TYPE string,
+          lv_str_line TYPE string.
+
+    LOOP AT ct_soli INTO lv_str_line WHERE line IS NOT INITIAL.
+      IF iv_line_breaker IS NOT INITIAL.
+        lv_fulltext = |{ lv_fulltext }{ lv_str_line }{ iv_line_breaker }|.
+      ELSE.
+        lv_fulltext = |{ lv_fulltext }{ lv_str_line }|.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_fulltext IS NOT INITIAL.
+      ct_soli = string_to_soli( lv_fulltext ).
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_TXT=>STRING_PARSE_O2O
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TEXT                        TYPE        ANY
@@ -1085,6 +1133,29 @@ METHOD string_reverse.
   ENDDO.
 
 ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_TXT=>STRING_TO_SOLI
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_STRING                      TYPE        ANY
+* | [<-()] RT_SOLI                        TYPE        SOLI_TAB
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD string_to_soli.
+    " Last changed: 11.2023 by Rinat Salakhov
+
+    DATA: lv_string TYPE string.
+
+    lv_string = iv_string.
+
+    CALL FUNCTION 'SO_STRING_TO_TAB'
+      EXPORTING
+        content_str = lv_string
+      TABLES
+        content_tab = rt_soli.
+
+
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
