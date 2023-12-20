@@ -1,5 +1,6 @@
 class ZCL_API_GVARS definition
 * SUPPORTS <7.4 *
+* based on https://blogs.sap.com/2020/04/09/constants-management/ *
   public
   create private .
 
