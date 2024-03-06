@@ -174,6 +174,9 @@ public section.
       !IO_SAVE_PROTOCOL type ref to ZCL_API_LOG optional
       !IV_SAVE_HANDLE type ABAP_BOOL default ABAP_FALSE
     preferred parameter IV_SAVE_HANDLE .
+  methods GET_HANDLE
+      returning
+        value(RV_HANDLE) type BALLOGHNDL .
 protected section.
 
   data MS_HEADER type BAL_S_LOG .
@@ -613,6 +616,17 @@ METHOD create_log.
   ENDIF.
 
 ENDMETHOD.
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method /AMAG/PP_API_LOG->GET_HANDLE
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RV_HANDLE                      TYPE        BALLOGHNDL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_handle.
+
+    rv_handle = mv_handle.
+
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
