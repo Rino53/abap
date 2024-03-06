@@ -24,7 +24,7 @@
       ENDIF.
     ENDLOOP.
 
-    DATA(lo_bdc) = NEW /amag/pp_api_bdc( 'SM04' ).
+    DATA(lo_bdc) = NEW pp_api_bdc( 'SM04' ).
 
     lo_bdc->options-updmode = 'S'.
     lo_bdc->options-nobinpt = ''.
