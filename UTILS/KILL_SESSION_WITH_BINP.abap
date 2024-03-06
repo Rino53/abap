@@ -1,5 +1,5 @@
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method /AMAG/BC_STMS=>TEST
+* | Static Public Method CLASS=>TEST
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_UNAME                       TYPE        SY-UNAME (default =SY-UNAME)
 * | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
