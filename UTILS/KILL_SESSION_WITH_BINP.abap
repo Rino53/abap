@@ -1,10 +1,12 @@
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method CLASS=>TEST
+* | Static Public Method CLASS=>KILL_SESSION
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_UNAME                       TYPE        SY-UNAME (default =SY-UNAME)
 * | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD test.
+  METHOD KILL_SESSION.
+
+    " Inspired by https://sapyard.com/abap-power-to-kill-2/
 
     DATA:
       lv_session_idx  TYPE char02.
@@ -14,7 +16,6 @@
     DATA(gt_session_list) = lo_server_info->get_session_list( with_application_info = 1 tenant = sy-mandt ).
 
     DELETE gt_session_list WHERE user_name   <> iv_uname.
-    DELETE gt_session_list WHERE tenant      <> sy-mandt.
     SORT gt_session_list BY session_hdl ASCENDING.
 
     LOOP AT gt_session_list INTO DATA(ls_sess).
