@@ -72,6 +72,19 @@ public section.
       !IV_TEXTMSGID type SYST-MSGID default '01'
       !IV_TEXTMSGNO type SYST-MSGNO default 319
       !IV_FROM_MEMORY type ABAP_BOOL default ABAP_FALSE .
+  methods E
+    importing
+      !IV_MESSAGE type ANY
+    preferred parameter IV_MESSAGE .
+  methods S
+    importing
+      !IV_MESSAGE type ANY
+      !IV_MSGTYPE type SYMSG-MSGTY default 'I'
+    preferred parameter IV_MESSAGE .
+  methods W
+    importing
+      !IV_MESSAGE type ANY
+    preferred parameter IV_MESSAGE .
   class-methods INIT_POPUP_LOG
     importing
       !IV_OBJECT type CLIKE optional
@@ -85,6 +98,15 @@ public section.
       !IV_DISPLAY_TYPE type CHAR1 default C_SBAL_PROFILE-SINGLE
       !IO_CONTAINER type ref to CL_GUI_CONTAINER optional
       !IV_POPUP type BOOLEAN default ''
+    returning
+      value(RV_UCOMM) type SY-UCOMM .
+  methods SHOW_MULTI
+    importing
+      !IV_TITLE type BALTITLE optional
+      !IV_DISPLAY_TYPE type CHAR1 default C_SBAL_PROFILE-SINGLE
+      !IO_CONTAINER type ref to CL_GUI_CONTAINER optional
+      !IV_POPUP type BOOLEAN default ''
+      !IT_HANDLE type ZCL_API_LOG_TT
     returning
       value(RV_UCOMM) type SY-UCOMM .
   methods CLEAR .
@@ -1229,4 +1251,142 @@ ENDMETHOD.
 
 
   ENDMETHOD.
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_LOG->SHOW_MULTI
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TITLE                       TYPE        BALTITLE(optional)
+* | [--->] IV_DISPLAY_TYPE                TYPE        CHAR1 (default =C_SBAL_PROFILE-SINGLE)
+* | [--->] IO_CONTAINER                   TYPE REF TO CL_GUI_CONTAINER(optional)
+* | [--->] IV_POPUP                       TYPE        BOOLEAN (default ='')
+* | [--->] IT_HANDLE                      TYPE        ZCL_API_LOG_TT
+* | [<-()] RV_UCOMM                       TYPE        SY-UCOMM
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD show_multi.
+
+  DATA: lt_handle TYPE bal_t_logh,
+        lv_handle TYPE balloghndl.
+
+  IF ms_disppr IS INITIAL AND iv_display_type IS SUPPLIED.
+    set_profile( iv_display_type = iv_display_type ).
+  ENDIF.
+
+  IF iv_title IS NOT INITIAL.
+    ms_disppr-title = iv_title.
+  ENDIF.
+
+
+  CLEAR: lt_handle[].
+  ms_disppr-end_col = 100.
+  LOOP AT it_handle  INTO DATA(ls_handle).
+    lv_handle = ls_handle-log_handle->get_handle( ).
+    INSERT lv_handle INTO TABLE lt_handle.
+
+  ENDLOOP.
+
+  LOOP AT ms_disppr-mess_fcat ASSIGNING FIELD-SYMBOL(<lf_mess_fcat>).
+    IF  <lf_mess_fcat>-col_pos = '2'.
+      <lf_mess_fcat>-col_pos = '3'.
+
+    ENDIF.
+
+    IF sy-tabix EQ 1.
+      <lf_mess_fcat>-ref_field = 'EXTNUMBER'.
+      <lf_mess_fcat>-col_pos = '2'.
+      <lf_mess_fcat>-outputlen = '20'.
+      CLEAR   <lf_mess_fcat>-no_out.
+    ENDIF.
+
+
+  ENDLOOP.
+
+  DATA(lv_old_ucomm) = sy-ucomm.
+
+  IF io_container IS BOUND.
+    CALL FUNCTION 'BAL_CNTL_CREATE'
+      EXPORTING
+        i_container          = io_container
+        i_s_display_profile  = ms_disppr
+        i_t_log_handle       = lt_handle
+      IMPORTING
+        e_control_handle     = mv_control_handle
+      EXCEPTIONS
+        profile_inconsistent = 1
+        internal_error       = 2
+        OTHERS               = 3.
+    CHECK sy-subrc = 0.
+
+  ELSE.
+
+    CALL FUNCTION 'BAL_DSP_LOG_DISPLAY'
+      EXPORTING
+        i_t_log_handle       = lt_handle
+        i_amodal             = iv_popup
+        i_s_display_profile  = ms_disppr
+      EXCEPTIONS
+        profile_inconsistent = 1
+        internal_error       = 2
+        no_data_available    = 3
+        no_authority         = 4.
+  ENDIF.
+  CHECK sy-subrc = 0.
+
+  rv_ucomm = sy-ucomm.
+  sy-ucomm = lv_old_ucomm.
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_LOG->E
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MESSAGE                     TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD e.
+
+  me->s( iv_message = iv_message
+         iv_msgtype = 'E' ).
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_LOG->S
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MESSAGE                     TYPE        ANY
+* | [--->] IV_MSGTYPE                     TYPE        SYMSG-MSGTY (default ='I')
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD S.
+  DATA: ls_sysmsg TYPE symsg,
+        lv_txtmsg TYPE text200.
+
+  lv_txtmsg = iv_message.
+
+  CHECK: lv_txtmsg IS NOT INITIAL.
+
+  ls_sysmsg-msgv1 = lv_txtmsg(50).
+  ls_sysmsg-msgv2 = lv_txtmsg+50(50).
+  ls_sysmsg-msgv3 = lv_txtmsg+100(50).
+  ls_sysmsg-msgv4 = lv_txtmsg+150(50).
+
+  me->add_message(
+       iv_textmsg1    = ls_sysmsg-msgv1
+       iv_textmsg2    = ls_sysmsg-msgv2
+       iv_textmsg3    = ls_sysmsg-msgv3
+       iv_textmsg4    = ls_sysmsg-msgv4
+       iv_textmsgty   = iv_msgtype ).
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_LOG->W
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MESSAGE                     TYPE        ANY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD W.
+
+  me->s( iv_message = iv_message
+         iv_msgtype = 'W' ).
+
+ENDMETHOD.
 ENDCLASS.
