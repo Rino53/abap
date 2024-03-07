@@ -5,28 +5,41 @@
 * | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
 * | [<-()] RS_BDCMSG                      TYPE        BDCMSGCOLL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD KILL_SESSION.
+    METHOD kill_session.
 
     " Inspired by https://sapyard.com/abap-power-to-kill-2/
+    " It will NOT work while debugging!!! (because of new session)
 
     DATA:
       lv_session_idx  TYPE char02.
 
 
-    DATA(lo_server_info) = new cl_server_info( ).
+    DATA(lo_server_info) = NEW cl_server_info( ).
     DATA(gt_session_list) = lo_server_info->get_session_list( with_application_info = 1 tenant = sy-mandt ).
 
     DELETE gt_session_list WHERE user_name   <> iv_uname.
     SORT gt_session_list BY session_hdl ASCENDING.
 
+    DATA: lv_app TYPE sy-tcode.
     LOOP AT gt_session_list INTO DATA(ls_sess).
-      IF ls_sess-application = iv_tcode.
+      lv_app = to_upper( ls_sess-application ).
+      IF lv_app = to_upper( iv_tcode ).
         lv_session_idx = sy-tabix.
         EXIT.
       ENDIF.
     ENDLOOP.
 
-    DATA(lo_bdc) = NEW pp_api_bdc( 'SM04' ).
+    IF lv_session_idx <= 0.
+      rs_bdcmsg-msgtyp = 'E'.
+      rs_bdcmsg-msgid = '00'.
+      rs_bdcmsg-msgnr = '398'.
+      rs_bdcmsg-msgv1 = iv_tcode.
+      rs_bdcmsg-msgv2 = 'Session not found for user'.
+      rs_bdcmsg-msgv3 = iv_uname.
+      RETURN.
+    ENDIF.
+
+    DATA(lo_bdc) = NEW zcl_api_bdc( 'SM04' ).
 
     lo_bdc->options-updmode = 'S'.
     lo_bdc->options-nobinpt = ''.
@@ -60,9 +73,7 @@
       rs_bdcmsg-msgv1 = iv_tcode.
       rs_bdcmsg-msgv2 = 'Session killed for user'.
       rs_bdcmsg-msgv3 = iv_uname.
+      RETURN.
     ENDIF.
-
-
-
 
   ENDMETHOD.
