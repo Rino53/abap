@@ -3,6 +3,7 @@
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_UNAME                       TYPE        SY-UNAME (default =SY-UNAME)
 * | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
+* | [<-()] RS_BDCMSG                      TYPE        BDCMSGCOLL
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD KILL_SESSION.
 
@@ -51,7 +52,15 @@
 
     lo_bdc->call( check_auth = abap_true ).
 
-*    mo_log->add_message( it_batch = lo_bdc->msgcoll ).
+    READ TABLE lo_bdc->msgcoll[] INTO rs_bdcmsg WITH KEY msgtyp = 'E'.
+    IF sy-subrc <> 0.
+      rs_bdcmsg-msgtyp = 'S'.
+      rs_bdcmsg-msgid = '00'.
+      rs_bdcmsg-msgnr = '398'.
+      rs_bdcmsg-msgv1 = iv_tcode.
+      rs_bdcmsg-msgv2 = 'Session killed for user'.
+      rs_bdcmsg-msgv3 = iv_uname.
+    ENDIF.
 
 
 
