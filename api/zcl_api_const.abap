@@ -1,176 +1,196 @@
-class ZCL_API_GVARS definition
+*----------------------------------------------------------------------*
+*       CLASS ZCL_API_GVARS DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 * SUPPORTS <7.4 *
 * based on https://blogs.sap.com/2020/04/09/constants-management/ *
-  public
-  create private .
+CLASS ZCL_API_GVARS DEFINITION
+  PUBLIC
+  CREATE PRIVATE .
 
-public section.
+  PUBLIC SECTION.
+    TYPE-POOLS abap .
+
+    TYPES:
 *"* public components of class ZCL_API_GVARS
 *"* do not include other source files here!!!
+      BEGIN OF t_params,
+        list_delimeter TYPE delim,
+      END OF t_params .
+    TYPES:
+      BEGIN OF t_accepts_creation,
+        group TYPE ZD_GVARS_GROUP,
+        type  TYPE ZD_GVARS_TYPE,
+      END OF t_accepts_creation .
+    TYPES ts_const TYPE ZT_GVARS01 .
+    TYPES:
+      tt_const TYPE STANDARD TABLE OF ts_const .
+    TYPES tt_value_list TYPE hrtim00_req_wf_value_tab .
 
-  types:
-    BEGIN OF T_PARAMS,
-           list_delimeter TYPE delim,
-         END OF T_PARAMS .
-  types:
-    BEGIN OF T_ACCEPTS_CREATION,
-           group TYPE zgvars_group,
-           type TYPE zgvars_type,
-         END OF T_ACCEPTS_CREATION .
-  types TS_CONST type ZT_GVARS01 .
-  types:
-    Tt_CONST type STANDARD TABLE OF TS_CONST .
-  types TT_VALUE_LIST type HRTIM00_REQ_WF_VALUE_TAB .
+    CONSTANTS:
+      BEGIN OF e_constant_types,
+        field      TYPE ZD_GVARS_TYPE VALUE '00',
+        boolean    TYPE ZD_GVARS_TYPE VALUE '01',
+        sap_range  TYPE ZD_GVARS_TYPE VALUE '02',
+        tab_list   TYPE ZD_GVARS_TYPE VALUE '03',
+        not_exists TYPE ZD_GVARS_TYPE VALUE '99',
+      END OF e_constant_types .
 
-  constants:
-    BEGIN OF E_CONSTANT_TYPES,
-               FIELD TYPE zgvars_TYPE VALUE '00',
-               BOOLEAN TYPE zgvars_TYPE VALUE '01',
-               SAP_RANGE TYPE zgvars_TYPE VALUE '02',
-               tab_list TYPE zgvars_TYPE VALUE '03',
-               NOT_EXISTS TYPE zgvars_TYPE VALUE '99',
-             END OF E_CONSTANT_TYPES .
-
-  type-pools ABAP .
-  class-methods MAINTAIN_GUI
-    importing
-      !I_SCOPE type ANY optional
-      !I_SCOPE_FIELD type VIEWFIELD default 'SCOPE'
-      !IV_VIEWNAME type DD02V-TABNAME default 'ZT_GVARS01'
-      !IV_EDIT_MODE type ABAP_BOOL default ABAP_TRUE
-    preferred parameter I_SCOPE .
-  methods GET
-    importing
-      !IV_NAME type TS_CONST-NAME
-      !IV_KEY1 type TS_CONST-KEY1 optional
-      !IV_KEY2 type TS_CONST-KEY2 optional
-    returning
-      value(RV_VALUE) type TS_CONST-VALUE .
-  class-methods READ_VAR
-    importing
-      !IV_NAME type TS_CONST-NAME
-      !IV_SCOPE type TS_CONST-SCOPE default SY-REPID
-      !IV_KEY1 type TS_CONST-KEY1 optional
-      !IV_KEY2 type TS_CONST-KEY2 optional
-    returning
-      value(RV_VALUE) type TS_CONST-VALUE .
-  methods GET_FIRST
-    importing
-      !IV_NAME type TS_CONST-NAME
-      !IV_KEY1 type TS_CONST-KEY1 optional
-      !IV_KEY2 type TS_CONST-KEY2 optional
-    returning
-      value(RV_VALUE) type TS_CONST-VALUE .
-  methods GET_BOOL
-    importing
-      !IV_NAME type TS_CONST-NAME
-      !IV_KEY1 type TS_CONST-KEY1 optional
-      !IV_KEY2 type TS_CONST-KEY2 optional
-    returning
-      value(RV_XFELD) type TS_CONST-ACTIVE .
-  methods GET_LIST
-    importing
-      !IV_NAME type TS_CONST-NAME
-      !IV_KEY1 type TS_CONST-KEY1 optional
-      !IV_KEY2 type TS_CONST-KEY2 optional
-    returning
-      value(RT_LIST) type TT_VALUE_LIST .
-  class-methods READ_CONSTANT
-    importing
-      !PI_NAME type ZT_GVARS01-NAME
-      !PI_SCOPE type ZT_GVARS01-SCOPE default SY-REPID
-      !PI_KEY1 type ZT_GVARS01-KEY1 optional
-      !PI_KEY2 type ZT_GVARS01-KEY2 optional
-    exporting
-      !PE_TYPE type ZT_GVARS01-TYPE
-      !PE_VALUE type ANY .
-  class-methods WRITE_CONSTANT
-    importing
-      !PI_NAME type ZT_GVARS01-NAME
-      !PI_SCOPE type ZT_GVARS01-SCOPE default SY-REPID
-      !PI_TYPE type ZT_GVARS01-TYPE default E_CONSTANT_TYPES-FIELD
-      !PI_KEY1 type ZT_GVARS01-KEY1 optional
-      !PI_KEY2 type ZT_GVARS01-KEY2 optional
-      !PI_DESCR type ZT_GVARS01-DESCR optional
-      !PI_VALUE type ANY .
-  class-methods CONFIGURE_CONSTANT
-    importing
-      !PI_NAME type ZT_GVARS01-NAME
-      !PI_ACCEPTS_CREATION type T_ACCEPTS_CREATION optional
-    exporting
-      !PE_SUBRC type SYSUBRC
-      !PE_VALUE type ANY .
-  class-methods DEFINE_SCOPE
-    importing
-      !I_SCOPE type ANY
-    preferred parameter I_SCOPE
-    returning
-      value(RV_SCOPE) type TS_CONST-SCOPE .
-  class-methods INIT
-    importing
-      !I_SCOPE type ANY optional
-      !IV_DELIM_LIST type DELIM default ','
-    preferred parameter I_SCOPE
-    returning
-      value(RO_INST) type ref to ZCL_API_GVARS .
-  class-methods DESCRIBE_CLASS_NAME
-    importing
-      !IO_INSTANCE type ANY
-    returning
-      value(RV_CLASS_NAME) type SYST-REPID .
-protected section.
+    CLASS-METHODS maintain_gui
+      IMPORTING
+        !i_scope       TYPE any OPTIONAL
+        !i_scope_field TYPE viewfield DEFAULT 'SCOPE'
+        !iv_viewname   TYPE dd02v-tabname DEFAULT 'ZT_GVARS01'
+        !iv_edit_mode  TYPE abap_bool DEFAULT abap_true
+          PREFERRED PARAMETER i_scope .
+    METHODS get
+      IMPORTING
+        !iv_name        TYPE ts_const-name
+        !iv_key1        TYPE ts_const-key1 OPTIONAL
+        !iv_key2        TYPE ts_const-key2 OPTIONAL
+      RETURNING
+        VALUE(rv_value) TYPE ts_const-value .
+    CLASS-METHODS read_var
+      IMPORTING
+        !iv_name        TYPE ts_const-name
+        !iv_scope       TYPE ts_const-scope DEFAULT sy-repid
+        !iv_key1        TYPE ts_const-key1 OPTIONAL
+        !iv_key2        TYPE ts_const-key2 OPTIONAL
+      RETURNING
+        VALUE(rv_value) TYPE ts_const-value .
+    METHODS get_first
+      IMPORTING
+        !iv_name        TYPE ts_const-name
+        !iv_key1        TYPE ts_const-key1 OPTIONAL
+        !iv_key2        TYPE ts_const-key2 OPTIONAL
+      RETURNING
+        VALUE(rv_value) TYPE ts_const-value .
+    METHODS get_bool
+      IMPORTING
+        !iv_name        TYPE ts_const-name
+        !iv_key1        TYPE ts_const-key1 OPTIONAL
+        !iv_key2        TYPE ts_const-key2 OPTIONAL
+      RETURNING
+        VALUE(rv_xfeld) TYPE ts_const-active .
+    METHODS get_list
+      IMPORTING
+        !iv_name       TYPE ts_const-name
+        !iv_key1       TYPE ts_const-key1 OPTIONAL
+        !iv_key2       TYPE ts_const-key2 OPTIONAL
+      RETURNING
+        VALUE(rt_list) TYPE tt_value_list .
+    METHODS get_vals
+      IMPORTING
+        !iv_name   TYPE ts_const-name
+        !iv_key1   TYPE ts_const-key1 OPTIONAL
+        !iv_key2   TYPE ts_const-key2 OPTIONAL
+      EXPORTING
+        !ev_value1 TYPE clike
+        !ev_value2 TYPE clike
+        !ev_value3 TYPE clike
+        !ev_value4 TYPE clike
+        !ev_value5 TYPE clike
+        !ev_value6 TYPE clike
+        !ev_value7 TYPE clike
+        !ev_value8 TYPE clike
+        !ev_value9 TYPE clike .
+    CLASS-METHODS read_constant
+      IMPORTING
+        !pi_name  TYPE ZT_GVARS01-name
+        !pi_scope TYPE ZT_GVARS01-scope DEFAULT sy-repid
+        !pi_key1  TYPE ZT_GVARS01-key1 OPTIONAL
+        !pi_key2  TYPE ZT_GVARS01-key2 OPTIONAL
+      EXPORTING
+        !pe_type  TYPE ZT_GVARS01-type
+        !pe_value TYPE any .
+    CLASS-METHODS write_constant
+      IMPORTING
+        !pi_name  TYPE ZT_GVARS01-name
+        !pi_scope TYPE ZT_GVARS01-scope DEFAULT sy-repid
+        !pi_type  TYPE ZT_GVARS01-type DEFAULT e_constant_types-field
+        !pi_key1  TYPE ZT_GVARS01-key1 OPTIONAL
+        !pi_key2  TYPE ZT_GVARS01-key2 OPTIONAL
+        !pi_descr TYPE ZT_GVARS01-descr OPTIONAL
+        !pi_value TYPE any .
+    CLASS-METHODS configure_constant
+      IMPORTING
+        !pi_name             TYPE ZT_GVARS01-name
+        !pi_accepts_creation TYPE t_accepts_creation OPTIONAL
+      EXPORTING
+        !pe_subrc            TYPE sysubrc
+        !pe_value            TYPE any .
+    CLASS-METHODS define_scope
+      IMPORTING
+        !i_scope        TYPE any
+          PREFERRED PARAMETER i_scope
+      RETURNING
+        VALUE(rv_scope) TYPE ts_const-scope .
+    CLASS-METHODS init
+      IMPORTING
+        !i_scope       TYPE any OPTIONAL
+        !iv_delim_list TYPE delim DEFAULT ','
+          PREFERRED PARAMETER i_scope
+      RETURNING
+        VALUE(ro_inst) TYPE REF TO ZCL_API_GVARS .
+    CLASS-METHODS describe_class_name
+      IMPORTING
+        !io_instance         TYPE any
+      RETURNING
+        VALUE(rv_class_name) TYPE syst-repid .
+  PROTECTED SECTION.
 *"* protected components of class ZCL_API_GVARS
 *"* do not include other source files here!!!
 
-  data MT_BUF type TT_CONST .
-  data MS_KEYS type TS_CONST .
-private section.
+    DATA mt_buf TYPE tt_const .
+    DATA ms_keys TYPE ts_const .
+  PRIVATE SECTION.
 *"* private components of class ZCL_API_GVARS
 *"* do not include other source files here!!!
 
-  data MS_PARAMS type T_PARAMS .
-  constants C_XML_VERSION type STRING value '1.0'. "#EC NOTEXT
-  constants:
-    BEGIN OF E_XML_TAGS,
-               range      TYPE string VALUE 'range',
-               line       TYPE string VALUE 'line',
-               sign       TYPE string VALUE 'sign',
-               option     TYPE string VALUE 'option',
-               low        TYPE string VALUE 'low',
-               high       TYPE string VALUE 'high',
-               version    TYPE string VALUE 'version',
-             END OF E_XML_TAGS .
+    DATA ms_params TYPE t_params .
+    CONSTANTS c_xml_version TYPE string VALUE '1.0'.        "#EC NOTEXT
+    CONSTANTS:
+      BEGIN OF e_xml_tags,
+        range   TYPE string VALUE 'range',
+        line    TYPE string VALUE 'line',
+        sign    TYPE string VALUE 'sign',
+        option  TYPE string VALUE 'option',
+        low     TYPE string VALUE 'low',
+        high    TYPE string VALUE 'high',
+        version TYPE string VALUE 'version',
+      END OF e_xml_tags .
 
-  methods _EXAMPLE
-    importing
-      !IV_REPID type SYST-REPID optional .
-  methods CONSTRUCTOR
-    importing
-      !IV_SCOPE type TS_CONST-SCOPE default SY-REPID
-      !IV_DELIM_LIST type DELIM default ',' .
-  methods SELECT_BUFF
-    importing
-      !IV_SCOPE type TS_CONST-SCOPE default SY-REPID .
-  class-methods HELPER_WRITE_CONST_FIELD
-    importing
-      !IS_CONST type ZT_GVARS01 .
-  class-methods HELPER_CONF_CONST_FIELD
-    importing
-      !PI_NAME type TS_CONST-NAME
-    exporting
-      !PE_SUBRC type SYSUBRC
-    changing
-      !PC_VALUE type ANY .
-  class-methods HELPER_READ_CONST_SAP_RANGE
-    importing
-      !PI_VALUE type TS_CONST-VALUE
-    exporting
-      !PE_VALUE type ANY .
-  class-methods HELPER_WRITE_CONST_SAP_RANGE
-    importing
-      !PI_NAME type TS_CONST-NAME
-      !PI_SCOPE type TS_CONST-SCOPE optional
-      !PI_VALUE type ANY .
+    METHODS _example
+      IMPORTING
+        !iv_repid TYPE syst-repid OPTIONAL .
+    METHODS constructor
+      IMPORTING
+        !iv_scope      TYPE ts_const-scope DEFAULT sy-repid
+        !iv_delim_list TYPE delim DEFAULT ',' .
+    METHODS select_buff
+      IMPORTING
+        !iv_scope TYPE ts_const-scope DEFAULT sy-repid .
+    CLASS-METHODS helper_write_const_field
+      IMPORTING
+        !is_const TYPE ZT_GVARS01 .
+    CLASS-METHODS helper_conf_const_field
+      IMPORTING
+        !pi_name  TYPE ts_const-name
+      EXPORTING
+        !pe_subrc TYPE sysubrc
+      CHANGING
+        !pc_value TYPE any .
+    CLASS-METHODS helper_read_const_sap_range
+      IMPORTING
+        !pi_value TYPE ts_const-value
+      EXPORTING
+        !pe_value TYPE any .
+    CLASS-METHODS helper_write_const_sap_range
+      IMPORTING
+        !pi_name  TYPE ts_const-name
+        !pi_scope TYPE ts_const-scope OPTIONAL
+        !pi_value TYPE any .
 ENDCLASS.
 
 
@@ -186,9 +206,9 @@ CLASS ZCL_API_GVARS IMPLEMENTATION.
 * | [<---] PE_SUBRC                       TYPE        SYSUBRC
 * | [<---] PE_VALUE                       TYPE        ANY
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method CONFIGURE_CONSTANT.
-    DATA: l_group TYPE zgvars_group,
-          l_type TYPE zgvars_type.
+  METHOD configure_constant.
+    DATA: l_group TYPE ZD_GVARS_GROUP,
+          l_type  TYPE ZD_GVARS_TYPE.
 
     CLEAR pe_subrc.
     CLEAR pe_value.
@@ -232,7 +252,7 @@ CLASS ZCL_API_GVARS IMPLEMENTATION.
           pi_type  = l_type
           pi_value = pe_value.
     ENDIF.
-  endmethod.
+  ENDMETHOD.                    "CONFIGURE_CONSTANT
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -241,15 +261,15 @@ CLASS ZCL_API_GVARS IMPLEMENTATION.
 * | [--->] IV_SCOPE                       TYPE        TS_CONST-SCOPE (default =SY-REPID)
 * | [--->] IV_DELIM_LIST                  TYPE        DELIM (default =',')
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-method CONSTRUCTOR.
+  METHOD constructor.
 
-  ms_keys-scope = iv_scope.
+    ms_keys-scope = iv_scope.
 
-  ms_params-list_delimeter = iv_delim_list.
+    ms_params-list_delimeter = iv_delim_list.
 
-  select_buff( iv_scope ).
+    select_buff( iv_scope ).
 
-endmethod.
+  ENDMETHOD.                    "CONSTRUCTOR
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -258,38 +278,38 @@ endmethod.
 * | [--->] I_SCOPE                        TYPE        ANY
 * | [<-()] RV_SCOPE                       TYPE        TS_CONST-SCOPE
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-method DEFINE_SCOPE.
+  METHOD define_scope.
 
-  CHECK: i_scope IS NOT INITIAL.
+    CHECK: i_scope IS NOT INITIAL.
 
-  " 1. Is it object? return CLASSNAME
-  rv_scope = describe_class_name( i_scope ).
+    " 1. Is it object? return CLASSNAME
+    rv_scope = describe_class_name( i_scope ).
 
-  CHECK: rv_scope IS INITIAL.
+    CHECK: rv_scope IS INITIAL.
 
-  " 2. Is it sy-repid from class-method (ZCL_CLASS====CP)? Return CLASSNAME = ZCL_CLASS
-  DATA: lv_progname TYPE RS38L-INCLUDE,
-        lv_isclass TYPE abap_bool,
-        lv_class_name TYPE seoclsname.
-  MOVE i_scope TO lv_progname.
-  CALL FUNCTION 'RS_PROGNAME_SPLIT'
-    EXPORTING
-      progname_with_namespace = lv_progname
-    IMPORTING
-      class_is_name           = lv_isclass
-      class_name              = lv_class_name
-    EXCEPTIONS
-      OTHERS                  = 2.
-  IF sy-subrc = 0 AND lv_isclass = abap_true AND lv_class_name IS NOT INITIAL.
-    rv_scope = lv_class_name.
-  ENDIF.
+    " 2. Is it sy-repid from class-method (ZCL_CLASS====CP)? Return CLASSNAME = ZCL_CLASS
+    DATA: lv_progname   TYPE rs38l-include,
+          lv_isclass    TYPE abap_bool,
+          lv_class_name TYPE seoclsname.
+    MOVE i_scope TO lv_progname.
+    CALL FUNCTION 'RS_PROGNAME_SPLIT'
+      EXPORTING
+        progname_with_namespace = lv_progname
+      IMPORTING
+        class_is_name           = lv_isclass
+        class_name              = lv_class_name
+      EXCEPTIONS
+        OTHERS                  = 2.
+    IF sy-subrc = 0 AND lv_isclass = abap_true AND lv_class_name IS NOT INITIAL.
+      rv_scope = lv_class_name.
+    ENDIF.
 
-  CHECK: rv_scope IS INITIAL.
+    CHECK: rv_scope IS INITIAL.
 
-  " 3. Its just sy-repid.
-  MOVE i_scope TO rv_scope.
+    " 3. Its just sy-repid.
+    MOVE i_scope TO rv_scope.
 
-endmethod.
+  ENDMETHOD.                    "DEFINE_SCOPE
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -298,28 +318,28 @@ endmethod.
 * | [--->] IO_INSTANCE                    TYPE        ANY
 * | [<-()] RV_CLASS_NAME                  TYPE        SYST-REPID
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD describe_class_name.
+  METHOD describe_class_name.
 
 
-  DATA: ref_descr TYPE REF TO cl_abap_refdescr,
-        typedescr TYPE REF TO cl_abap_typedescr,
-        absolute_class_name TYPE abap_abstypename,
-        dummy TYPE c.
+    DATA: ref_descr           TYPE REF TO cl_abap_refdescr,
+          typedescr           TYPE REF TO cl_abap_typedescr,
+          absolute_class_name TYPE abap_abstypename,
+          dummy               TYPE c.
 
-  typedescr = cl_abap_typedescr=>describe_by_data( io_instance ).
-  CHECK: typedescr IS BOUND.
+    typedescr = cl_abap_typedescr=>describe_by_data( io_instance ).
+    CHECK: typedescr IS BOUND.
 
-  TRY.
-      ref_descr ?= typedescr.
-      CHECK: sy-subrc = 0.
-    CATCH cx_sy_move_cast_error.
-      RETURN.
-  ENDTRY.
+    TRY.
+        ref_descr ?= typedescr.
+        CHECK: sy-subrc = 0.
+      CATCH cx_sy_move_cast_error.
+        RETURN.
+    ENDTRY.
 
-  absolute_class_name = ref_descr->get_referenced_type( )->absolute_name. " \CLASS=ZCL_VMD_MANAGER
-  SPLIT absolute_class_name AT '\CLASS=' INTO dummy rv_class_name.
+    absolute_class_name = ref_descr->get_referenced_type( )->absolute_name. " \CLASS=ZCL_VMD_MANAGER
+    SPLIT absolute_class_name AT '\CLASS=' INTO dummy rv_class_name.
 
-ENDMETHOD.
+  ENDMETHOD.                    "describe_class_name
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -330,54 +350,54 @@ ENDMETHOD.
 * | [--->] IV_KEY2                        TYPE        TS_CONST-KEY2(optional)
 * | [<-()] RV_VALUE                       TYPE        TS_CONST-VALUE
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD get.
-  DATA:
-        ls_buf TYPE ts_const,
-        lt_key1_rng TYPE RANGE OF ts_const-key1,
-        lt_key2_rng TYPE RANGE OF ts_const-key2.
+  METHOD get.
+    DATA:
+      ls_buf      TYPE ts_const,
+      lt_key1_rng TYPE RANGE OF ts_const-key1,
+      lt_key2_rng TYPE RANGE OF ts_const-key2.
 
-  FIELD-SYMBOLS: <ls_key1> LIKE LINE OF lt_key1_rng,
-                 <ls_key2> LIKE LINE OF lt_key2_rng.
+    FIELD-SYMBOLS: <ls_key1> LIKE LINE OF lt_key1_rng,
+                   <ls_key2> LIKE LINE OF lt_key2_rng.
 
-  CLEAR: rv_value.
+    CLEAR: rv_value.
 
-  IF iv_key1 IS NOT INITIAL AND iv_key1 <> '*'.
-    APPEND INITIAL LINE TO lt_key1_rng ASSIGNING <ls_key1>.
-    MOVE 'IEQ' TO <ls_key1>.
-    <ls_key1>-low = to_upper( iv_key1 ).
-  ENDIF.
-  IF iv_key2 IS NOT INITIAL AND iv_key1 <> '*'.
-    APPEND INITIAL LINE TO lt_key2_rng ASSIGNING <ls_key2>.
-    MOVE 'IEQ' TO <ls_key2>.
-    <ls_key2>-low = to_upper( iv_key2 ).
-  ENDIF.
+    IF iv_key1 IS NOT INITIAL AND iv_key1 <> '*'.
+      APPEND INITIAL LINE TO lt_key1_rng ASSIGNING <ls_key1>.
+      MOVE 'IEQ' TO <ls_key1>.
+      <ls_key1>-low = to_upper( iv_key1 ).
+    ENDIF.
+    IF iv_key2 IS NOT INITIAL AND iv_key1 <> '*'.
+      APPEND INITIAL LINE TO lt_key2_rng ASSIGNING <ls_key2>.
+      MOVE 'IEQ' TO <ls_key2>.
+      <ls_key2>-low = to_upper( iv_key2 ).
+    ENDIF.
 
-  LOOP AT mt_buf INTO ls_buf WHERE name = to_upper( iv_name )
-                               AND key1 IN lt_key1_rng
-                               AND key2 IN lt_key2_rng.
-    EXIT.
-  ENDLOOP.
+    LOOP AT mt_buf INTO ls_buf WHERE name = to_upper( iv_name )
+                                 AND key1 IN lt_key1_rng
+                                 AND key2 IN lt_key2_rng.
+      EXIT.
+    ENDLOOP.
 
-  IF ls_buf IS NOT INITIAL.
+    IF ls_buf IS NOT INITIAL.
 
-    CASE ls_buf-type.
+      CASE ls_buf-type.
 
-      WHEN e_constant_types-boolean.
-        MOVE ls_buf-active TO rv_value.
+        WHEN e_constant_types-boolean.
+          MOVE ls_buf-active TO rv_value.
 
-      WHEN e_constant_types-sap_range.
-        helper_read_const_sap_range( EXPORTING pi_value = ls_buf-value
-                                     IMPORTING pe_value = rv_value ).
+        WHEN e_constant_types-sap_range.
+          helper_read_const_sap_range( EXPORTING pi_value = ls_buf-value
+                                       IMPORTING pe_value = rv_value ).
 
-      WHEN OTHERS. " e_constant_types-field.
-        MOVE ls_buf-value TO rv_value.
+        WHEN OTHERS. " e_constant_types-field.
+          MOVE ls_buf-value TO rv_value.
 
-    ENDCASE.
+      ENDCASE.
 *    ELSE.
 
-  ENDIF.
+    ENDIF.
 
-ENDMETHOD.
+  ENDMETHOD.                    "get
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -388,22 +408,22 @@ ENDMETHOD.
 * | [--->] IV_KEY2                        TYPE        TS_CONST-KEY2(optional)
 * | [<-()] RV_XFELD                       TYPE        TS_CONST-ACTIVE
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD GET_BOOL.
+  METHOD get_bool.
 
-  DATA: lv_value_raw TYPE ts_const-value.
+    DATA: lv_value_raw TYPE ts_const-value.
 
-  CLEAR: rv_xfeld.
+    CLEAR: rv_xfeld.
 
-  lv_value_raw = me->get( iv_name = iv_name
-                          iv_key1 = iv_key1
-                          iv_key2 = iv_key2 ).
+    lv_value_raw = me->get( iv_name = iv_name
+                            iv_key1 = iv_key1
+                            iv_key2 = iv_key2 ).
 
-  IF lv_value_raw IS NOT INITIAL.
-    rv_xfeld = abap_true.
-  ENDIF.
+    IF lv_value_raw IS NOT INITIAL.
+      rv_xfeld = abap_true.
+    ENDIF.
 
 
-ENDMETHOD.
+  ENDMETHOD.                    "GET_BOOL
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -414,23 +434,14 @@ ENDMETHOD.
 * | [--->] IV_KEY2                        TYPE        TS_CONST-KEY2(optional)
 * | [<-()] RV_VALUE                       TYPE        TS_CONST-VALUE
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD GET_FIRST.
-  DATA: lt_list TYPE tt_value_list,
-        lv_line TYPE LINE OF tt_value_list.
+  METHOD get_first.
 
-  lt_list = get_list( iv_key1 = iv_key1
-                      iv_key2 = iv_key2
-                      iv_name = iv_name ).
+    me->get_vals( EXPORTING iv_key1 = iv_key1
+                            iv_key2 = iv_key2
+                            iv_name = iv_name
+                  IMPORTING ev_value1 = rv_value ).
 
-  IF lt_list[] IS NOT INITIAL.
-    READ TABLE lt_list INTO lv_line INDEX 1.
-    rv_value = lv_line.
-  ELSE.
-    rv_value = get( iv_key1 = iv_key1
-                    iv_key2 = iv_key2
-                    iv_name = iv_name ).
-  ENDIF.
-ENDMETHOD.
+  ENDMETHOD.                    "GET_FIRST
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -441,25 +452,64 @@ ENDMETHOD.
 * | [--->] IV_KEY2                        TYPE        TS_CONST-KEY2(optional)
 * | [<-()] RT_LIST                        TYPE        TT_VALUE_LIST
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD GET_LIST.
+  METHOD get_list.
 
-  DATA: lv_value_raw TYPE ts_const-value.
+    DATA: lv_value_raw TYPE ts_const-value.
 
-  CLEAR: rt_list.
+    CLEAR: rt_list.
 
-  lv_value_raw = me->get( iv_name = iv_name
-                          iv_key1 = iv_key1
-                          iv_key2 = iv_key2 ).
+    lv_value_raw = me->get( iv_name = iv_name
+                            iv_key1 = iv_key1
+                            iv_key2 = iv_key2 ).
 
-  IF lv_value_raw IS NOT INITIAL.
-    SPLIT lv_value_raw AT ms_params-list_delimeter INTO TABLE rt_list.
-    IF rt_list IS INITIAL.
-      APPEND lv_value_raw TO rt_list.
+    IF lv_value_raw IS NOT INITIAL.
+      SPLIT lv_value_raw AT ms_params-list_delimeter INTO TABLE rt_list.
+      IF rt_list IS INITIAL.
+        APPEND lv_value_raw TO rt_list.
+      ENDIF.
     ENDIF.
-  ENDIF.
 
 
-ENDMETHOD.
+  ENDMETHOD.                    "GET_LIST
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_GVARS->GET_VALS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_NAME                        TYPE        TS_CONST-NAME
+* | [--->] IV_KEY1                        TYPE        TS_CONST-KEY1(optional)
+* | [--->] IV_KEY2                        TYPE        TS_CONST-KEY2(optional)
+* | [<---] EV_VALUE1                      TYPE        CLIKE
+* | [<---] EV_VALUE2                      TYPE        CLIKE
+* | [<---] EV_VALUE3                      TYPE        CLIKE
+* | [<---] EV_VALUE4                      TYPE        CLIKE
+* | [<---] EV_VALUE5                      TYPE        CLIKE
+* | [<---] EV_VALUE6                      TYPE        CLIKE
+* | [<---] EV_VALUE7                      TYPE        CLIKE
+* | [<---] EV_VALUE8                      TYPE        CLIKE
+* | [<---] EV_VALUE9                      TYPE        CLIKE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_vals.
+
+    DATA: lv_output_field TYPE fieldname.
+    FIELD-SYMBOLS: <lv_output> TYPE any.
+
+    DATA(lt_val_list) = me->get_list( iv_name = iv_name
+                                      iv_key1 = iv_key1
+                                      iv_key2 = iv_key2 ).
+
+    LOOP AT lt_val_list INTO DATA(lv_value_single).
+
+      lv_output_field = CONV #( |EV_VALUE{ sy-tabix WIDTH = 1 }| ).
+      ASSIGN (lv_output_field) TO <lv_output>.
+      IF sy-subrc = 0.
+        MOVE lv_value_single TO <lv_output>.
+      ENDIF.
+
+    ENDLOOP.
+
+
+  ENDMETHOD.                    "GET_LIST
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -469,11 +519,11 @@ ENDMETHOD.
 * | [<---] PE_SUBRC                       TYPE        SYSUBRC
 * | [<-->] PC_VALUE                       TYPE        ANY
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method HELPER_CONF_CONST_FIELD.
-    DATA: l_title TYPE string,
-          l_value TYPE string,
+  METHOD helper_conf_const_field.
+    DATA: l_title  TYPE string,
+          l_value  TYPE string,
 
-          l_answer TYPE C LENGTH 1.
+          l_answer TYPE c LENGTH 1.
 
     CLEAR pe_subrc.
     l_value = pc_value.
@@ -491,14 +541,14 @@ ENDMETHOD.
         valueout            = l_value
       EXCEPTIONS
         fieldname_not_found = 1
-        others              = 2.
+        OTHERS              = 2.
 
     IF sy-subrc = 0 AND l_answer IS INITIAL.
       pc_value = l_value.
     ELSE.
       pe_subrc = 1.
     ENDIF.
-  endmethod.
+  ENDMETHOD.                    "HELPER_CONF_CONST_FIELD
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -507,68 +557,68 @@ ENDMETHOD.
 * | [--->] PI_VALUE                       TYPE        TS_CONST-VALUE
 * | [<---] PE_VALUE                       TYPE        ANY
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method HELPER_READ_CONST_SAP_RANGE.
+  METHOD helper_read_const_sap_range.
     FIELD-SYMBOLS: <li_table> TYPE STANDARD TABLE,
-                   <lwa_line> TYPE ANY,
-                   <l_field> TYPE ANY.
+                   <lwa_line> TYPE any,
+                   <l_field>  TYPE any.
 
 **********************************************************************
 *  Variables needed for XML macros.
-   DATA: lo_xml_document TYPE REF TO cl_xml_document,
+    DATA: lo_xml_document     TYPE REF TO cl_xml_document,
 
-         lo_element_tmp TYPE REF TO if_ixml_element,
-         lo_node_tmp TYPE REF TO if_ixml_node,
-         lo_iterator_tmp TYPE REF TO if_ixml_node_iterator,
+          lo_element_tmp      TYPE REF TO if_ixml_element,
+          lo_node_tmp         TYPE REF TO if_ixml_node,
+          lo_iterator_tmp     TYPE REF TO if_ixml_node_iterator,
 
 **********************************************************************
 *  Other variables
-         l_retcode TYPE sysubrc,
+          l_retcode           TYPE sysubrc,
 
-         lo_element_root TYPE REF TO if_ixml_element,
-         lo_collection_lines TYPE REF TO if_ixml_node_collection,
-         lo_element_line TYPE REF TO if_ixml_element.
+          lo_element_root     TYPE REF TO if_ixml_element,
+          lo_collection_lines TYPE REF TO if_ixml_node_collection,
+          lo_element_line     TYPE REF TO if_ixml_element.
 **********************************************************************
     DATA: lv_string_input TYPE string.
     lv_string_input = pi_value.
 
-    PARSE_XML_STRING lv_string_input l_retcode.
+*    parse_xml_string lv_string_input l_retcode.
 
     IF l_retcode = 0.
-      GET_ROOT_ELEMENT lo_element_root.
+*      get_root_element lo_element_root.
 
-      IF lo_element_root->get_name( ) = zcl_api_gvars=>e_xml_tags-range.
+      IF lo_element_root->get_name( ) = ZCL_API_GVARS=>e_xml_tags-range.
         ASSIGN pe_value TO <li_table>.
 
-        FIND_ELEMENTS lo_element_root zcl_api_gvars=>e_xml_tags-line lo_collection_lines.
+*        find_elements lo_element_root ZCL_API_GVARS=>e_xml_tags-line lo_collection_lines.
 
-        ITERATE_XML_COLLECTION lo_collection_lines lo_element_line.
-          IF lo_element_line IS BOUND.
-            APPEND INITIAL LINE TO <li_table> ASSIGNING <lwa_line>.
+*        iterate_xml_collection lo_collection_lines lo_element_line.
+        IF lo_element_line IS BOUND.
+          APPEND INITIAL LINE TO <li_table> ASSIGNING <lwa_line>.
 
-            ASSIGN COMPONENT 'SIGN' OF STRUCTURE <lwa_line> TO <l_field>.
-            IF sy-subrc = 0.
-              READ_XML_FIELD lo_element_line zcl_api_gvars=>e_xml_tags-sign <l_field>.
-            ENDIF.
-
-            ASSIGN COMPONENT 'OPTION' OF STRUCTURE <lwa_line> TO <l_field>.
-            IF sy-subrc = 0.
-              READ_XML_FIELD lo_element_line zcl_api_gvars=>e_xml_tags-option <l_field>.
-            ENDIF.
-
-            ASSIGN COMPONENT 'LOW' OF STRUCTURE <lwa_line> TO <l_field>.
-            IF sy-subrc = 0.
-              READ_XML_FIELD lo_element_line zcl_api_gvars=>e_xml_tags-low <l_field>.
-            ENDIF.
-
-            ASSIGN COMPONENT 'HIGH' OF STRUCTURE <lwa_line> TO <l_field>.
-            IF sy-subrc = 0.
-              READ_XML_FIELD lo_element_line zcl_api_gvars=>e_xml_tags-high <l_field>.
-            ENDIF.
+          ASSIGN COMPONENT 'SIGN' OF STRUCTURE <lwa_line> TO <l_field>.
+          IF sy-subrc = 0.
+*            read_xml_field lo_element_line ZCL_API_GVARS=>e_xml_tags-sign <l_field>.
           ENDIF.
-        END_ITERATE_XML_COLLECTION.
+
+          ASSIGN COMPONENT 'OPTION' OF STRUCTURE <lwa_line> TO <l_field>.
+          IF sy-subrc = 0.
+*            read_xml_field lo_element_line ZCL_API_GVARS=>e_xml_tags-option <l_field>.
+          ENDIF.
+
+          ASSIGN COMPONENT 'LOW' OF STRUCTURE <lwa_line> TO <l_field>.
+          IF sy-subrc = 0.
+*            read_xml_field lo_element_line ZCL_API_GVARS=>e_xml_tags-low <l_field>.
+          ENDIF.
+
+          ASSIGN COMPONENT 'HIGH' OF STRUCTURE <lwa_line> TO <l_field>.
+          IF sy-subrc = 0.
+*            read_xml_field lo_element_line ZCL_API_GVARS=>e_xml_tags-high <l_field>.
+          ENDIF.
+        ENDIF.
+*        end_iterate_xml_collection.
       ENDIF.
     ENDIF.
-  endmethod.
+  ENDMETHOD.                    "HELPER_READ_CONST_SAP_RANGE
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -576,15 +626,15 @@ ENDMETHOD.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IS_CONST                       TYPE        ZT_GVARS01
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method HELPER_WRITE_CONST_FIELD.
-    DATA: lwa_ZT_GVARS01 TYPE ZT_GVARS01.
+  METHOD helper_write_const_field.
+    DATA: lwa_zt_gvars01 TYPE ZT_GVARS01.
 
-    lwa_ZT_GVARS01 = is_const.
+    lwa_zt_gvars01 = is_const.
 
-    CHECK: lwa_ZT_GVARS01-name IS NOT INITIAL.
+    CHECK: lwa_zt_gvars01-name IS NOT INITIAL.
 
-    MODIFY ZT_GVARS01 FROM lwa_ZT_GVARS01.
-  endmethod.
+    MODIFY ZT_GVARS01 FROM lwa_zt_gvars01.
+  ENDMETHOD.                    "HELPER_WRITE_CONST_FIELD
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -594,70 +644,70 @@ ENDMETHOD.
 * | [--->] PI_SCOPE                       TYPE        TS_CONST-SCOPE(optional)
 * | [--->] PI_VALUE                       TYPE        ANY
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method HELPER_WRITE_CONST_SAP_RANGE.
+  METHOD helper_write_const_sap_range.
     FIELD-SYMBOLS: <li_table> TYPE STANDARD TABLE,
-                   <lwa_line> TYPE ANY,
-                   <l_field> TYPE ANY.
+                   <lwa_line> TYPE any,
+                   <l_field>  TYPE any.
 
 **********************************************************************
 *  Variables needed for XML macros.
-   DATA: lo_ixml TYPE REF TO if_ixml,
-         lo_document TYPE REF TO if_ixml_document,
-         lo_element_tmp TYPE REF TO if_ixml_element,
+    DATA: lo_ixml              TYPE REF TO if_ixml,
+          lo_document          TYPE REF TO if_ixml_document,
+          lo_element_tmp       TYPE REF TO if_ixml_element,
 
-         lo_xml_document TYPE REF TO cl_xml_document,
+          lo_xml_document      TYPE REF TO cl_xml_document,
 
-         l_string_tmp TYPE string,
+          l_string_tmp         TYPE string,
 **********************************************************************
 *  Other variables
-         lwa_ZT_GVARS01 TYPE ZT_GVARS01,
+          lwa_zt_gvars01 TYPE ZT_GVARS01,
 
-         lo_root TYPE REF TO if_ixml_element,
-         lo_line TYPE REF TO if_ixml_element.
+          lo_root              TYPE REF TO if_ixml_element,
+          lo_line              TYPE REF TO if_ixml_element.
 **********************************************************************
 
-    lwa_ZT_GVARS01-name = pi_name.
-    lwa_ZT_GVARS01-scope = pi_scope.
-    lwa_ZT_GVARS01-type = e_constant_types-sap_range.
+    lwa_zt_gvars01-name = pi_name.
+    lwa_zt_gvars01-scope = pi_scope.
+    lwa_zt_gvars01-type = e_constant_types-sap_range.
 
-    CREATE_XML_DOCUMENT.
+*    create_xml_document.
 
-    CREATE_XML_ELEMENT   lo_document    zcl_api_gvars=>e_xml_tags-range    lo_root.
-    CREATE_XML_ATTRIBUTE lo_root        zcl_api_gvars=>e_xml_tags-version  zcl_api_gvars=>c_xml_version. " 1.0
+*    create_xml_element   lo_document    ZCL_API_GVARS=>e_xml_tags-range    lo_root.
+*    create_xml_attribute lo_root        ZCL_API_GVARS=>e_xml_tags-version  ZCL_API_GVARS=>c_xml_version. " 1.0
 
     ASSIGN pi_value TO <li_table>.
     IF sy-subrc = 0.
       LOOP AT <li_table> ASSIGNING <lwa_line>.
-        CREATE_XML_ELEMENT lo_root        zcl_api_gvars=>e_xml_tags-line     lo_line.
+*        create_xml_element lo_root        ZCL_API_GVARS=>e_xml_tags-line     lo_line.
 
         ASSIGN COMPONENT 'SIGN' OF STRUCTURE <lwa_line> TO <l_field>.
         IF sy-subrc = 0.
-          WRITE_XML_FIELD  lo_line        zcl_api_gvars=>e_xml_tags-sign     <l_field>.
+*          write_xml_field  lo_line        ZCL_API_GVARS=>e_xml_tags-sign     <l_field>.
         ENDIF.
 
         ASSIGN COMPONENT 'OPTION' OF STRUCTURE <lwa_line> TO <l_field>.
         IF sy-subrc = 0.
-          WRITE_XML_FIELD  lo_line        zcl_api_gvars=>e_xml_tags-option   <l_field>.
+*          write_xml_field  lo_line        ZCL_API_GVARS=>e_xml_tags-option   <l_field>.
         ENDIF.
 
         ASSIGN COMPONENT 'LOW' OF STRUCTURE <lwa_line> TO <l_field>.
         IF sy-subrc = 0.
-          WRITE_XML_FIELD  lo_line        zcl_api_gvars=>e_xml_tags-low      <l_field>.
+*          write_xml_field  lo_line        ZCL_API_GVARS=>e_xml_tags-low      <l_field>.
         ENDIF.
 
         ASSIGN COMPONENT 'HIGH' OF STRUCTURE <lwa_line> TO <l_field>.
         IF sy-subrc = 0.
-          WRITE_XML_FIELD  lo_line        zcl_api_gvars=>e_xml_tags-high     <l_field>.
+*          write_xml_field  lo_line        ZCL_API_GVARS=>e_xml_tags-high     <l_field>.
         ENDIF.
       ENDLOOP.
 
       DATA: lv_string_out TYPE string.
-      CREATE_XML_STRING lv_string_out.
-      lwa_ZT_GVARS01-value = lv_string_out.
+*      create_xml_string lv_string_out.
+      lwa_zt_gvars01-value = lv_string_out.
     ENDIF.
 
-    MODIFY ZT_GVARS01 FROM lwa_ZT_GVARS01.
-  endmethod.
+    MODIFY ZT_GVARS01 FROM lwa_zt_gvars01.
+  ENDMETHOD.                    "HELPER_WRITE_CONST_SAP_RANGE
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -667,14 +717,14 @@ ENDMETHOD.
 * | [--->] IV_DELIM_LIST                  TYPE        DELIM (default =',')
 * | [<-()] RO_INST                        TYPE REF TO ZCL_API_GVARS
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD init.
+  METHOD init.
 
-  CREATE OBJECT ro_inst
-    EXPORTING
-      iv_scope      = define_scope( i_scope )
-      iv_delim_list = iv_delim_list.
+    CREATE OBJECT ro_inst
+      EXPORTING
+        iv_scope      = define_scope( i_scope )
+        iv_delim_list = iv_delim_list.
 
-ENDMETHOD.
+  ENDMETHOD.                    "init
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -685,54 +735,54 @@ ENDMETHOD.
 * | [--->] IV_VIEWNAME                    TYPE        DD02V-TABNAME (default ='ZT_GVARS01')
 * | [--->] IV_EDIT_MODE                   TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD maintain_gui.
+  METHOD maintain_gui.
 
-  DATA: lt_dba TYPE STANDARD TABLE OF vimsellist,
-        ls_dba TYPE vimsellist,
-        lv_scope TYPE ts_const-scope,
-        lv_action TYPE char1.
+    DATA: lt_dba    TYPE STANDARD TABLE OF vimsellist,
+          ls_dba    TYPE vimsellist,
+          lv_scope  TYPE ts_const-scope,
+          lv_action TYPE char1.
 
-  lv_scope = define_scope( i_scope ).
+    lv_scope = define_scope( i_scope ).
 
-  IF lv_scope IS NOT INITIAL.
+    IF lv_scope IS NOT INITIAL.
 
-    ls_dba-viewfield = i_scope_field.
-    ls_dba-operator = 'EQ'.
-    ls_dba-value = lv_scope.
-    APPEND ls_dba TO lt_dba.
+      ls_dba-viewfield = i_scope_field.
+      ls_dba-operator = 'EQ'.
+      ls_dba-value = lv_scope.
+      APPEND ls_dba TO lt_dba.
 
-  ENDIF.
+    ENDIF.
 
-  " S = Display, U = Change, T = Transport
-  IF iv_edit_mode = abap_true.
-    lv_action = 'U'.
-  ELSE.
-    lv_action = 'S'.
-  ENDIF.
+    " S = Display, U = Change, T = Transport
+    IF iv_edit_mode = abap_true.
+      lv_action = 'U'.
+    ELSE.
+      lv_action = 'S'.
+    ENDIF.
 
-  CALL FUNCTION 'VIEW_MAINTENANCE_CALL'
-    EXPORTING
-      action      = lv_action
-      view_name   = iv_viewname
-    TABLES
-      dba_sellist = lt_dba
-    EXCEPTIONS
-      OTHERS      = 15.
-  IF sy-subrc <> 0.
-    RETURN.
-  ENDIF.
+    CALL FUNCTION 'VIEW_MAINTENANCE_CALL'
+      EXPORTING
+        action      = lv_action
+        view_name   = iv_viewname
+      TABLES
+        dba_sellist = lt_dba
+      EXCEPTIONS
+        OTHERS      = 15.
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
 
 *  === Snippets: ===
 *
 *  1. Add at the end of sscr:
 *  SELECTION-SCREEN PUSHBUTTON 14(18) text-con USER-COMMAND ucon. " 'Maintain Constants'
 *  AT SELECTION-SCREEN.
-*  IF sy-ucomm = 'UCON'. zcl_api_gvars=>maintain_gui( sy-repid ). ENDIF.
+*  IF sy-ucomm = 'UCON'. ZCL_API_GVARS=>maintain_gui( sy-repid ). ENDIF.
 *
 *  2. To call another view:
-*  IF sy-ucomm = 'UCAK'. zcl_api_gvars=>maintain_gui( iv_viewname = 'ZVMDM_BP_AKONT' ). ENDIF.
+*  IF sy-ucomm = 'UCAK'. ZCL_API_GVARS=>maintain_gui( iv_viewname = 'ZVMDM_BP_AKONT' ). ENDIF.
 
-ENDMETHOD.
+  ENDMETHOD.                    "maintain_gui
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -745,10 +795,10 @@ ENDMETHOD.
 * | [<---] PE_TYPE                        TYPE        ZT_GVARS01-TYPE
 * | [<---] PE_VALUE                       TYPE        ANY
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method READ_CONSTANT.
-    DATA: lwa_ZT_GVARS01 TYPE ZT_GVARS01,
-          lt_key1_rng TYPE RANGE OF ZT_GVARS01-KEY1,
-          lt_key2_rng TYPE RANGE OF ZT_GVARS01-KEY2.
+  METHOD read_constant.
+    DATA: lwa_zt_gvars01 TYPE ZT_GVARS01,
+          lt_key1_rng          TYPE RANGE OF ZT_GVARS01-key1,
+          lt_key2_rng          TYPE RANGE OF ZT_GVARS01-key2.
 
     FIELD-SYMBOLS: <ls_key1> LIKE LINE OF lt_key1_rng,
                    <ls_key2> LIKE LINE OF lt_key2_rng.
@@ -770,32 +820,32 @@ ENDMETHOD.
 
     SELECT SINGLE *
     FROM ZT_GVARS01
-    INTO lwa_ZT_GVARS01
+    INTO lwa_zt_gvars01
     WHERE name = pi_name
       AND scope = pi_scope
       AND key1 IN lt_key1_rng[]
       AND key2 IN lt_key2_rng[].
 
     IF sy-subrc = 0.
-      pe_type = lwa_ZT_GVARS01-type.
+      pe_type = lwa_zt_gvars01-type.
 
-      CASE lwa_ZT_GVARS01-type.
+      CASE lwa_zt_gvars01-type.
         WHEN e_constant_types-field.
-          IF lwa_ZT_GVARS01-active = abap_true.
-            MOVE lwa_ZT_GVARS01-value TO pe_value.
+          IF lwa_zt_gvars01-active = abap_true.
+            MOVE lwa_zt_gvars01-value TO pe_value.
           ENDIF.
 
         WHEN e_constant_types-boolean.
-          pe_value = lwa_ZT_GVARS01-active.
+          pe_value = lwa_zt_gvars01-active.
 
         WHEN e_constant_types-sap_range.
-          helper_read_const_sap_range( EXPORTING pi_value = lwa_ZT_GVARS01-value
+          helper_read_const_sap_range( EXPORTING pi_value = lwa_zt_gvars01-value
                                        IMPORTING pe_value = pe_value ).
       ENDCASE.
     ELSE.
       pe_type = e_constant_types-not_exists.
     ENDIF.
-  endmethod.
+  ENDMETHOD.                    "READ_CONSTANT
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -807,17 +857,17 @@ ENDMETHOD.
 * | [--->] IV_KEY2                        TYPE        TS_CONST-KEY2(optional)
 * | [<-()] RV_VALUE                       TYPE        TS_CONST-VALUE
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-METHOD READ_VAR.
-  DATA: lo_gvars TYPE REF TO zcl_api_gvars.
+  METHOD read_var.
+    DATA: lo_gvars TYPE REF TO ZCL_API_GVARS.
 
-  lo_gvars = zcl_api_gvars=>init( iv_scope ).
-  CHECK lo_gvars IS NOT INITIAL.
+    lo_gvars = ZCL_API_GVARS=>init( iv_scope ).
+    CHECK lo_gvars IS NOT INITIAL.
 
-  rv_value = lo_gvars->get( iv_name = iv_name
-                            iv_key1 = iv_key1
-                            iv_key2 = iv_key2 ).
+    rv_value = lo_gvars->get( iv_name = iv_name
+                              iv_key1 = iv_key1
+                              iv_key2 = iv_key2 ).
 
-ENDMETHOD.
+  ENDMETHOD.                    "READ_VAR
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -825,13 +875,13 @@ ENDMETHOD.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_SCOPE                       TYPE        TS_CONST-SCOPE (default =SY-REPID)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method SELECT_BUFF.
+  METHOD select_buff.
     DATA:
-          lv_scope_in TYPE ts_const-scope,
-          lt_scope_rng TYPE RANGE OF ts_const-scope.
+      lv_scope_in  TYPE ts_const-scope,
+      lt_scope_rng TYPE RANGE OF ts_const-scope.
 
     FIELD-SYMBOLS: <ls_scope> LIKE LINE OF lt_scope_rng,
-                   <ls_buf> TYPE ts_const.
+                   <ls_buf>   TYPE ts_const.
 
     CLEAR: mt_buf[].
 
@@ -857,7 +907,7 @@ ENDMETHOD.
     SORT mt_buf BY scope name key1 key2.
 
 ***    MANDT    MANDT               CLNT  3   0 Client
-***    SCOPE    zgvars_GROUP  CHAR  40  0 Constant group -> Domain PROGNAME
+***    SCOPE    ZD_GVARS_GROUP  CHAR  40  0 Constant group -> Domain PROGNAME
 ***    NAME     SXMS_DYN_CONF_NAME  CHAR  50  0 Parameter Name
 ***    KEY1     E_ADDKEY            CHAR  10  0 Additional Key
 ***    KEY2     ERGRN_VK            CHAR  17  0 Supplementary Classification Key
@@ -865,14 +915,14 @@ ENDMETHOD.
 ***    ACTIVE   EXTACT_KK           CHAR  1   0 Item Active
 ***    VALUE    AXT_PARAMVALUE      CHAR  255 0 Parameter Value
 ***    DESCR    MEMGMT_AMP_TEXT     CHAR  128 0 Description
-***    TYPE     zgvars_TYPE   NUMC  2   0 Constant type
-******    FIELD      TYPE zgvars_TYPE VALUE '00',
-******    BOOLEAN    TYPE zgvars_TYPE VALUE '01',
-******    SAP_RANGE  TYPE zgvars_TYPE VALUE '02',
-******    TAB_LIST   TYPE zgvars_TYPE VALUE '03',
-******    NOT_EXISTS TYPE zgvars_TYPE VALUE '99',
+***    TYPE     ZD_GVARS_TYPE   NUMC  2   0 Constant type
+******    FIELD      TYPE ZD_GVARS_TYPE VALUE '00',
+******    BOOLEAN    TYPE ZD_GVARS_TYPE VALUE '01',
+******    SAP_RANGE  TYPE ZD_GVARS_TYPE VALUE '02',
+******    TAB_LIST   TYPE ZD_GVARS_TYPE VALUE '03',
+******    NOT_EXISTS TYPE ZD_GVARS_TYPE VALUE '99',
 
-  endmethod.
+  ENDMETHOD.                    "SELECT_BUFF
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -886,7 +936,7 @@ ENDMETHOD.
 * | [--->] PI_DESCR                       TYPE        ZT_GVARS01-DESCR(optional)
 * | [--->] PI_VALUE                       TYPE        ANY
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method WRITE_CONSTANT.
+  METHOD write_constant.
     DATA: ls_const_t001 TYPE ZT_GVARS01.
 
     ls_const_t001-name  = pi_name.
@@ -924,7 +974,7 @@ ENDMETHOD.
             pi_scope = pi_scope
             pi_value = pi_value.
     ENDCASE.
-  endmethod.
+  ENDMETHOD.                    "WRITE_CONSTANT
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -932,28 +982,28 @@ ENDMETHOD.
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_REPID                       TYPE        SYST-REPID(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-method _EXAMPLE.
-  DATA: lo_gvars TYPE REF TO zcl_api_gvars,
-        lv_value TYPE me->ts_const-value,
-        ls_adrc  TYPE adrc,
-        lt_bukrs_list TYPE t_bukrs.
+  METHOD _example.
+    DATA: lo_gvars      TYPE REF TO ZCL_API_GVARS,
+          lv_value      TYPE me->ts_const-value,
+          ls_adrc       TYPE adrc,
+          lt_bukrs_list TYPE t_bukrs.
 
-  " 1. Initialization
+    " 1. Initialization
     " # Simple init
-    lo_gvars = zcl_api_gvars=>init( iv_repid ).
-    lo_gvars = zcl_api_gvars=>init( sy-repid ).
+    lo_gvars = ZCL_API_GVARS=>init( iv_repid ).
+    lo_gvars = ZCL_API_GVARS=>init( sy-repid ).
 
     " # Child Class: ZCL_CHILD->CONSTRUCTOR, parent class will create GVARS of childs scope
-*     super->constructor( iv_progname = zcl_api_gvars=>describe_class_name( me ) ). " passed scope = ZCL_CHILD
+*     super->constructor( iv_progname = ZCL_API_GVARS=>describe_class_name( me ) ). " passed scope = ZCL_CHILD
     " AT method super->constructor:
-*     mo_gvars = zcl_api_gvars=>init( iv_progname ).
+*     mo_gvars = ZCL_API_GVARS=>init( iv_progname ).
 
     " # Init scope of another object and read value
 *    zcl_dev_obj1=>mo_gvars->get( iv_name = 'VAR1' iv_key1 = 'POST' ).
     " AT method zcl_dev_obj1=>class_constructor:
-*    mo_gvars = zcl_api_gvars=>init( sy-repid ).
+*    mo_gvars = ZCL_API_GVARS=>init( sy-repid ).
 
- " 2. Value Read
+    " 2. Value Read
     " # Read with keys
     ls_adrc-name1 = lo_gvars->get( iv_name = 'AdRC-name1' iv_key1 = 'JUR' ).
 
@@ -978,8 +1028,8 @@ method _EXAMPLE.
                c_tkey_crt  TYPE me->ts_const-key1 VALUE 'CREATION',
                c_tkey_upd  TYPE me->ts_const-key1 VALUE 'UPDATING'.
     DATA:
-       lv_tkaction TYPE me->ts_const-key1 VALUE c_tkey_upd,
-       lv_longtext_id TYPE me->ts_const-value.
+      lv_tkaction    TYPE me->ts_const-key1 VALUE c_tkey_upd,
+      lv_longtext_id TYPE me->ts_const-value.
 
     IF lo_gvars->get_bool( 'CREATE_VEND' ) = abap_true.
       lv_tkaction = c_tkey_crt.
@@ -989,5 +1039,5 @@ method _EXAMPLE.
 
 
 
-endmethod.
+  ENDMETHOD.                    "_EXAMPLE
 ENDCLASS.
