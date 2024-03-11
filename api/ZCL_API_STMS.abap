@@ -21,15 +21,14 @@ public section.
       !IV_TRKORR type E070-TRKORR
     returning
       value(RS_RESULT) type TRWBO_REQUEST .
-  class-methods TEST
-    importing
-      !IV_UNAME type SY-UNAME default SY-UNAME
-      !IV_TCODE type SY-TCODE default 'SM30' .
   class-methods TRANSPORT_WITH_COPY
     importing
+      !IV_COPY type ABAP_BOOL default ABAP_TRUE
+      !IV_RELEASE type ABAP_BOOL default ABAP_TRUE
       !IV_IMPORT type ABAP_BOOL default ABAP_TRUE
-      !IV_WORKBENCH type E070-TRKORR default ''
-      !IV_DESTINATION type SYST-SYSID default '' .
+      !IV_WORKBENCH type E070-TRKORR default 'DEVK900999'
+      !IV_DESTINATION type SYST-SYSID default 'QAS'
+      !IV_SHOW_LOG type ABAP_BOOL default ABAP_TRUE .
   methods CC_CREATE
     importing
       !IV_TRKORR type E070-TRKORR optional
@@ -49,6 +48,7 @@ private section.
   class-data:
     MT_TMS_targets type STANDARD TABLE OF TMSCSYS .
   data MV_TARGET type TMSCSYS-SYSNAM .
+  
 ENDCLASS.
 
 
@@ -96,11 +96,15 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 *K  Workbench Request
 *W  Customizing Request
 *T  Transport of Copies
-    DATA(lv_desc_len) = conv byte( 60 - strlen( iv_postfix ) ).
-    IF strlen( ls_trnew-as4text ) < lv_desc_len.
-      ls_trnew-as4text = |{ ls_trnew-as4text } { iv_postfix }|. " Max 60 chars
+    DATA(lv_postfix_len) = conv byte( strlen( iv_postfix ) ).
+    DATA(lv_desc_max) = conv byte( 60 - strlen( iv_postfix ) ).
+    IF strlen( ls_trnew-as4text ) < lv_desc_max.
+      DATA(lv_desc_len) = conv byte( strlen( ls_trnew-as4text ) ) - lv_postfix_len.
+      IF ls_trnew-as4text+lv_desc_len(lv_postfix_len) <> iv_postfix.
+        ls_trnew-as4text = |{ ls_trnew-as4text } { iv_postfix }|. " Max 60 chars
+      ENDIF.
     ELSE.
-      ls_trnew-as4text+lv_desc_len = iv_postfix.
+      ls_trnew-as4text+lv_desc_max = iv_postfix.
     ENDIF.
 
 
@@ -135,6 +139,8 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
       mo_log->s( |Request { rv_trnew } type { ls_trnew-trfunction } created| ).
 
     ENDIF.
+
+
 
   ENDMETHOD.
 
@@ -213,7 +219,16 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
       mo_log->s( |Transport Request { iv_trkorr } imported into { mv_target } | ).
     ENDIF.
 
+
+
+
+
 *    CALL FUNCTION 'TMS_TP_IMPORT'
+
+
+
+
+
 
   ENDMETHOD.
 
@@ -331,6 +346,11 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
     ENDIF.
 
+
+
+
+
+
   ENDMETHOD.
 
 
@@ -366,7 +386,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD constructor.
 
-    mo_log = zcl_api_log=>init_popup_log( ).
+    mo_log = ZCL_API_LOG=>init_popup_log( ).
 
     READ TABLE mt_tms_targets INTO DATA(ls_target) WITH KEY sysnam = iv_target_sys.
     IF sy-subrc = 0.
@@ -380,50 +400,45 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
   ENDMETHOD.
 
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_API_STMS=>TEST
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IV_UNAME                       TYPE        SY-UNAME (default =SY-UNAME)
-* | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD test.
-
-
-
-
-
-  ENDMETHOD.
-
-
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STMS=>TRANSPORT_WITH_COPY
 * +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_COPY                        TYPE        ABAP_BOOL (default =ABAP_TRUE)
+* | [--->] IV_RELEASE                     TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * | [--->] IV_IMPORT                      TYPE        ABAP_BOOL (default =ABAP_TRUE)
-* | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR
-* | [--->] IV_DESTINATION                 TYPE        SYST-SYSID 
+* | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR (default ='DEVK900999')
+* | [--->] IV_DESTINATION                 TYPE        SYST-SYSID (default ='QAS')
+* | [--->] IV_SHOW_LOG                    TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD transport_with_copy.
     DATA(lv_workbench) = iv_workbench.
 
-*   CHECK: system=>is_productive( ) = abap_false.
+    * CHECK: cl_ca_system=>is_productive( ) = abap_false.
 
     DATA(lo_trman) = NEW ZCL_API_STMS( iv_destination ).
 
-    DATA(lv_trcopy) = lo_trman->cc_create( lv_workbench ).
-    IF lv_trcopy IS NOT INITIAL.
-
-
+    IF iv_copy = abap_true.
+      DATA(lv_trcopy) = lo_trman->cc_create( lv_workbench ).
       lo_trman->cc_insert_objs( iv_trfrom = lv_workbench
                                 iv_trto   = lv_trcopy ).
-      lo_trman->cc_release( lv_trcopy ).
+    ELSE.
+      lv_trcopy = iv_workbench.
+    ENDIF.
+
+    IF lv_trcopy IS NOT INITIAL.
+
+      IF iv_release = abap_true.
+        lo_trman->cc_release( lv_trcopy ).
+      ENDIF.
 
       IF iv_import = abap_true.
         lo_trman->cc_import( lv_trcopy ).
       ENDIF.
     ENDIF.
 
-    lo_trman->mo_log->show_and_clear( ).
+    IF iv_show_log = abap_true.
+      lo_trman->mo_log->show_and_clear( ).
+    ENDIF.
 
   ENDMETHOD.
 ENDCLASS.
