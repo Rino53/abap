@@ -1,0 +1,122 @@
+*** Example #1: Multikey
+begin of t_out_short
+        n1 type i,
+        n2(190),          "Наименование счета бух. учета и дебитора/кредитора
+        n3 type hkont,
+        n4 type ltext,
+        n10 type ZLS_FI000151_DEBITOR-DMBTR, 
+        n11 type ZLS_FI000151_DEBITOR-DMBTR,
+        n12 type ZLS_FI000151_DEBITOR-DMBTR, 
+        n13 type ZLS_FI000151_DEBITOR-DMBTR,  
+        nhkont(50) type C,  "Наименование счета
+        ind type ZLS_FI000151_DEBITOR-IND,
+end of t_out_short,
+
+DATA: ls_keys TYPE ZCL_api_excel=>ts_key_fields.
+
+  ls_keys-number  = 'n1'.
+  ls_keys-total   = 'n2'.
+  ls_keys-lvl2key = 'n3|nhkont'. "hkont
+  ls_keys-special_char = '|'.
+  ZCL_api_excel=>collect( EXPORTING is_key_fields = ls_keys
+                                     it_data       = pt_out_short[]    ).
+
+  CLEAR ls_keys.
+  ls_keys-lvl2key = 'ИТОГО по счету |n3| |nhkont|'.
+  ZCL_api_excel=>write_by_lvl( EXPORTING is_totals_text = ls_keys
+                                CHANGING ct_data = pt_out_short[] ).
+*** Example #2: double semi-summs
+TYPES: BEGIN OF ts_excel,
+  num        TYPE i,                   "1
+  sgtxt      TYPE string,              "2
+  fullname   TYPE J_3RFINV_NAME,       "3
+  nomer_data TYPE string,              "4
+  bsld       TYPE ZSFI_TAX_VED_T-bsld, "5
+  column6    TYPE dummy,
+  column7    TYPE dummy,
+  column8    TYPE dummy,
+
+  " NOT IN EXCEL:
+  hkont TYPE hkont,
+  einv TYPE char50,
+  edat TYPE char10.
+TYPES: END OF ts_excel.
+TYPES: tt_excel TYPE STANDARD TABLE OF ts_excel.
+  LOOP AT tab_t ASSIGNING <fs_tab>.
+    CLEAR ls_excel.
+    MOVE-CORRESPONDING <fs_tab> TO ls_excel .
+    "2
+    CONCATENATE ls_excel-hkont '-' ls_excel-sgtxt INTO ls_excel-sgtxt SEPARATED BY space.
+    SHIFT ls_excel-sgtxt LEFT DELETING LEADING '0'.
+    "3
+    ls_excel-nomer_data = ls_excel-einv && ','.
+    CONCATENATE ls_excel-nomer_data ls_excel-edat INTO ls_excel-nomer_data SEPARATED BY space.
+    SHIFT ls_excel-nomer_data LEFT DELETING LEADING ','.
+    CONDENSE ls_excel-nomer_data.
+
+    COLLECT ls_excel INTO lt_excel.
+
+  ENDLOOP.
+DELETE lt_excel WHERE bsld = 0.
+
+  sort lt_excel by hkont fullname.
+
+  CLEAR ZCL_api_excel=>set_keys.
+
+  ZCL_api_excel=>set_keys-number = 'num'.
+  ZCL_api_excel=>set_keys-lvl2key = 'fullname'.
+  ZCL_api_excel=>set_keys-total = 'sgtxt'.
+
+*  ZCL_api_excel=>generate_test_data( CHANGING ct_data = lt_excel[] ).
+  ZCL_api_excel=>generate_line_nums( CHANGING ct_data = lt_excel[] ).
+  ZCL_api_excel=>collect( it_data = lt_excel[] ).
+
+  ZCL_api_excel=>set_keys-lvl2key = 'Итого по контрагенту'.
+  ZCL_api_excel=>write_by_lvl( CHANGING ct_data = lt_excel[] ).
+
+  ZCL_api_excel=>write_by_pages( EXPORTING iv_gap_first = p_line1
+                                            iv_gap_next  = p_line99
+                                  CHANGING  ct_data = lt_excel[] ).
+
+  ZCL_api_excel=>write_total( EXPORTING iv_text_itogo = 'Всего по акту'
+                               CHANGING ct_data = lt_excel[]  ).
+
+                               
+*** Example #3: 3rd level of nesting
+TYPES: BEGIN OF ts_excel2,
+           number TYPE char5, "i
+           kunnr_inf(323) TYPE c, 
+           sgtxt TYPE sgtxt,
+           bldat TYPE char10, "bldat,
+           waers TYPE ltext, "waers, 
+           dmbtr_s TYPE wrbtr,
+           dmbtr_h TYPE wrbtr,
+           bldat2 TYPE char10, "bldat,
+           ltext(55) TYPE c,
+
+       " not in excel
+          hkont TYPE hkont,
+          kunnr_short TYPE txt50,
+          hkont_long  TYPE txt50, 
+       END OF ts_excel2.
+TYPES: tt_excel2 TYPE STANDARD TABLE OF ts_excel2.
+DATA: ls_keys TYPE ZCL_api_excel=>ts_key_fields.
+
+  ls_keys-number  = 'number'.
+  ls_keys-total   = 'kunnr_inf'.
+  ls_keys-lvl2key = 'hkont|hkont_long'.
+  ls_keys-lvl3key = 'kunnr_inf|kunnr_short'.
+  ls_keys-special_char = '|'.
+  ZCL_api_excel=>collect( is_key_fields = ls_keys
+                           it_data       = gt_excel2[] ).
+
+  CLEAR ls_keys.
+  ls_keys-lvl2key = 'Итого по счету |hkont| |hkont_long|'.
+  ls_keys-lvl3key = 'Итого по контрагенту |kunnr_short|'.
+  ZCL_api_excel=>write_by_lvl( EXPORTING is_totals_text = ls_keys
+                                CHANGING ct_data = gt_excel2[] ).
+
+  IF lv_write_pages = abap_true.
+    ZCL_api_excel=>write_by_pages( EXPORTING iv_gap_first = p_line1 iv_gap_next = p_line99
+                                    CHANGING ct_data = gt_excel2[] ).
+  ENDIF.
