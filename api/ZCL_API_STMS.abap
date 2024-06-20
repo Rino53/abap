@@ -7,6 +7,9 @@ public section.
 
   data MO_LOG type ref to ZCL_API_LOG .
 
+  class-methods CHECK_SYSTEM_TYPE
+    returning
+      value(RV_SYST_TYPE) type T000-CCCATEGORY .
   methods CC_IMPORT
     importing
       !IV_TRKORR type E070-TRKORR
@@ -26,7 +29,7 @@ public section.
       !IV_COPY type ABAP_BOOL default ABAP_TRUE
       !IV_RELEASE type ABAP_BOOL default ABAP_TRUE
       !IV_IMPORT type ABAP_BOOL default ABAP_TRUE
-      !IV_WORKBENCH type E070-TRKORR default 'DEVK900999'
+      !IV_WORKBENCH type E070-TRKORR default ''
       !IV_DESTINATION type SYST-SYSID default 'QAS'
       !IV_SHOW_LOG type ABAP_BOOL default ABAP_TRUE .
   methods CC_CREATE
@@ -48,7 +51,8 @@ private section.
   class-data:
     MT_TMS_targets type STANDARD TABLE OF TMSCSYS .
   data MV_TARGET type TMSCSYS-SYSNAM .
-  
+
+  class-methods GUI_REP.
 ENDCLASS.
 
 
@@ -220,16 +224,6 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
     ENDIF.
 
 
-
-
-
-*    CALL FUNCTION 'TMS_TP_IMPORT'
-
-
-
-
-
-
   ENDMETHOD.
 
 
@@ -355,6 +349,36 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_API_STMS=>CHECK_SYSTEM_TYPE
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RV_SYST_TYPE                   TYPE        T000-CCCATEGORY
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD check_system_type.
+
+    CALL FUNCTION 'TR_SYS_PARAMS'
+      IMPORTING
+*       SYSTEMEDIT         = " 'N' for pord system
+*       SYSTEMNAME         = lv_current_syst_name
+*       SYSTEMTYPE         = " 'CUSTOMER'
+*       SYSTEM_CLIENT_EDIT = " '2' for pord, '1' for others
+*       SYS_CLIINDDEP_EDIT = " '2' for pord, 'space' for others
+        system_client_role = rv_syst_type " D,T,P -> main flag for syst determination
+*       EV_SFW_BCSET_REC   = " not used
+*       EV_C_SYSTEM        = " not used
+      EXCEPTIONS
+        no_systemname      = 1
+        no_systemtype      = 2
+        OTHERS             = 3.
+    IF sy-subrc <> 0.
+      CLEAR rv_syst_type.
+    ENDIF.
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STMS=>CLASS_CONSTRUCTOR
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -386,7 +410,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD constructor.
 
-    mo_log = ZCL_API_LOG=>init_popup_log( ).
+    mo_log = zcl_api_log=>init_popup_log( ).
 
     READ TABLE mt_tms_targets INTO DATA(ls_target) WITH KEY sysnam = iv_target_sys.
     IF sy-subrc = 0.
@@ -400,24 +424,75 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
   ENDMETHOD.
 
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_API_STMS=>GUI_REP
+* +-------------------------------------------------------------------------------------------------+
+* | 
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD gui_rep. " >> CODE for GUI REP
+
+**    REPORT zbc_stms_app.
+**
+**    SELECTION-SCREEN BEGIN OF BLOCK 001 WITH FRAME TITLE TEXT-001.
+**      PARAMETERS: p_treq TYPE e070-trkorr OBLIGATORY MEMORY ID kor,
+**                  p_dest TYPE syst-sysid DEFAULT 'QAS' MATCHCODE OBJECT s_realsys,
+**                  p_slog AS CHECKBOX DEFAULT abap_true.
+**      SELECTION-SCREEN SKIP.
+**      PARAMETERS: p_copytr RADIOBUTTON GROUP gstp,
+**                  p_releas RADIOBUTTON GROUP gstp,
+**                  p_import RADIOBUTTON GROUP gstp DEFAULT 'X'.
+**    SELECTION-SCREEN END OF BLOCK 001.
+**
+**
+**    AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_treq.
+**      CALL FUNCTION 'TR_F4_REQUESTS'
+**        EXPORTING
+**          iv_trkorr_pattern   = p_treq
+**        IMPORTING
+**          ev_selected_request = p_treq.
+**
+**    INITIALIZATION.
+**
+**    END-OF-SELECTION.
+**      PERFORM main.
+**
+**    FORM main.
+**
+**      zcl_stms=>transport_with_copy( iv_copy    = p_copytr
+**                                     iv_release = p_releas
+**                                     iv_import  = p_import
+**                                     iv_workbench   = p_treq
+**                                     iv_destination = p_dest
+**                                     iv_show_log    = p_slog ).
+**
+**    ENDFORM.
+
+
+  ENDMETHOD.
+
+
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STMS=>TRANSPORT_WITH_COPY
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_COPY                        TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * | [--->] IV_RELEASE                     TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * | [--->] IV_IMPORT                      TYPE        ABAP_BOOL (default =ABAP_TRUE)
-* | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR (default ='DEVK900999')
+* | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR (default ='')
 * | [--->] IV_DESTINATION                 TYPE        SYST-SYSID (default ='QAS')
 * | [--->] IV_SHOW_LOG                    TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD transport_with_copy.
-    DATA(lv_workbench) = iv_workbench.
-
-    * CHECK: cl_ca_system=>is_productive( ) = abap_false.
+  METHOD transport_with_copy.    
+    CHECK: check_system_type( ) = 'D'. " using FM 'TR_SYS_PARAMS'
 
     DATA(lo_trman) = NEW ZCL_API_STMS( iv_destination ).
+    DATA(lv_workbench) = iv_workbench.
+    DATA(lv_procstep) = cond byte( WHEN iv_import  = abap_true THEN 3
+                                   WHEN iv_release = abap_true THEN 2
+                                   WHEN iv_copy    = abap_true THEN 1
+                                   ELSE 0 ).
 
-    IF iv_copy = abap_true.
+    IF lv_procstep >= 1.
       DATA(lv_trcopy) = lo_trman->cc_create( lv_workbench ).
       lo_trman->cc_insert_objs( iv_trfrom = lv_workbench
                                 iv_trto   = lv_trcopy ).
@@ -427,11 +502,11 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
     IF lv_trcopy IS NOT INITIAL.
 
-      IF iv_release = abap_true.
+      IF lv_procstep >= 2.
         lo_trman->cc_release( lv_trcopy ).
       ENDIF.
 
-      IF iv_import = abap_true.
+      IF lv_procstep >= 3.
         lo_trman->cc_import( lv_trcopy ).
       ENDIF.
     ENDIF.
