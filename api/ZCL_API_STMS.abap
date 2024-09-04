@@ -29,7 +29,7 @@ public section.
       !IV_COPY type ABAP_BOOL default ABAP_TRUE
       !IV_RELEASE type ABAP_BOOL default ABAP_TRUE
       !IV_IMPORT type ABAP_BOOL default ABAP_TRUE
-      !IV_WORKBENCH type E070-TRKORR default ''
+      !IV_WORKBENCH type E070-TRKORR default 'DEV123'
       !IV_DESTINATION type SYST-SYSID default 'QAS'
       !IV_SHOW_LOG type ABAP_BOOL default ABAP_TRUE .
   methods CC_CREATE
@@ -52,7 +52,10 @@ private section.
     MT_TMS_targets type STANDARD TABLE OF TMSCSYS .
   data MV_TARGET type TMSCSYS-SYSNAM .
 
-  class-methods GUI_REP.
+  class-methods TEST
+    importing
+      !IV_UNAME type SY-UNAME default SY-UNAME
+      !IV_TCODE type SY-TCODE default 'SM30' .
 ENDCLASS.
 
 
@@ -95,20 +98,26 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
     ENDIF.
 
-    DATA(ls_trnew) = ls_request-h.
-    ls_trnew-trfunction = iv_trtype.
+    " trfunction:
 *K  Workbench Request
 *W  Customizing Request
 *T  Transport of Copies
-    DATA(lv_postfix_len) = conv byte( strlen( iv_postfix ) ).
-    DATA(lv_desc_max) = conv byte( 60 - strlen( iv_postfix ) ).
+
+    DATA(lv_postfix) = |[{ sy-datum+4(4) }.{ sy-timlo(4) }-{ COND char02( WHEN ls_request-h-trfunction = 'K' THEN 'WB'
+                                                                          WHEN ls_request-h-trfunction = 'W' THEN 'CU' ELSE 'XX' ) }]|. " [0903.1513-WB]
+
+    DATA(ls_trnew) = ls_request-h.
+    ls_trnew-trfunction = iv_trtype.
+
+    DATA(lv_postfix_len) = conv byte( strlen( lv_postfix ) ).
+    DATA(lv_desc_max) = conv byte( 60 - strlen( lv_postfix ) ).
     IF strlen( ls_trnew-as4text ) < lv_desc_max.
       DATA(lv_desc_len) = conv byte( strlen( ls_trnew-as4text ) ) - lv_postfix_len.
-      IF ls_trnew-as4text+lv_desc_len(lv_postfix_len) <> iv_postfix.
-        ls_trnew-as4text = |{ ls_trnew-as4text } { iv_postfix }|. " Max 60 chars
+      IF ls_trnew-as4text+lv_desc_len(lv_postfix_len) <> lv_postfix.
+        ls_trnew-as4text = |{ ls_trnew-as4text } { lv_postfix }|. " Max 60 chars
       ENDIF.
     ELSE.
-      ls_trnew-as4text+lv_desc_max = iv_postfix.
+      ls_trnew-as4text+lv_desc_max = lv_postfix.
     ENDIF.
 
 
@@ -222,6 +231,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
     ELSE.
       mo_log->s( |Transport Request { iv_trkorr } imported into { mv_target } | ).
     ENDIF.
+
 
 
   ENDMETHOD.
@@ -426,23 +436,30 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Private Method ZCL_API_STMS=>GUI_REP
+* | Static Private Method ZCL_API_STMS=>TEST
 * +-------------------------------------------------------------------------------------------------+
-* | 
+* | [--->] IV_UNAME                       TYPE        SY-UNAME (default =SY-UNAME)
+* | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD gui_rep. " >> CODE for GUI REP
+  METHOD test. " >> CODE for GUI REP
 
 **    REPORT zbc_stms_app.
 **
 **    SELECTION-SCREEN BEGIN OF BLOCK 001 WITH FRAME TITLE TEXT-001.
 **      PARAMETERS: p_treq TYPE e070-trkorr OBLIGATORY MEMORY ID kor,
-**                  p_dest TYPE syst-sysid DEFAULT 'QAS' MATCHCODE OBJECT s_realsys,
+**                  p_dest TYPE syst-sysid DEFAULT 'TST' MATCHCODE OBJECT s_realsys,
 **                  p_slog AS CHECKBOX DEFAULT abap_true.
 **      SELECTION-SCREEN SKIP.
 **      PARAMETERS: p_copytr RADIOBUTTON GROUP gstp,
 **                  p_releas RADIOBUTTON GROUP gstp,
 **                  p_import RADIOBUTTON GROUP gstp DEFAULT 'X'.
 **    SELECTION-SCREEN END OF BLOCK 001.
+**      SELECTION-SCREEN PUSHBUTTON 2(23) TEXT-S10 USER-COMMAND TORG.
+**
+**      AT SELECTION-SCREEN.
+**        IF sy-ucomm = 'TORG '.
+**          CALL TRANSACTION 'SE10' WITH AUTHORITY-CHECK AND SKIP FIRST SCREEN.
+**        ENDIF.
 **
 **
 **    AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_treq.
@@ -460,11 +477,11 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 **    FORM main.
 **
 **      zcl_stms=>transport_with_copy( iv_copy    = p_copytr
-**                                     iv_release = p_releas
-**                                     iv_import  = p_import
-**                                     iv_workbench   = p_treq
-**                                     iv_destination = p_dest
-**                                     iv_show_log    = p_slog ).
+**                                          iv_release = p_releas
+**                                          iv_import  = p_import
+**                                          iv_workbench   = p_treq
+**                                          iv_destination = p_dest
+**                                          iv_show_log    = p_slog ).
 **
 **    ENDFORM.
 
@@ -479,10 +496,11 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 * | [--->] IV_RELEASE                     TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * | [--->] IV_IMPORT                      TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR (default ='')
-* | [--->] IV_DESTINATION                 TYPE        SYST-SYSID (default ='QAS')
+* | [--->] IV_DESTINATION                 TYPE        SYST-SYSID (default ='')
 * | [--->] IV_SHOW_LOG                    TYPE        ABAP_BOOL (default =ABAP_TRUE)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD transport_with_copy.    
+  METHOD transport_with_copy.
+    CHECK: cl_ca_system=>is_productive( ) = abap_false. " HINT: instead, you can use FM 'TR_SYS_PARAMS'
     CHECK: check_system_type( ) = 'D'. " using FM 'TR_SYS_PARAMS'
 
     DATA(lo_trman) = NEW ZCL_API_STMS( iv_destination ).
