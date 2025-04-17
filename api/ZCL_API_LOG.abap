@@ -20,6 +20,11 @@ public section.
       okay TYPE sy-ucomm VALUE '&ONT',                          "#EC NOTEXT
       cancel TYPE sy-ucomm VALUE '&F12',                          "#EC NOTEXT
     END OF c_window_action .
+  TYPES: BEGIN OF ts_log_handles_stru,     
+    log_handle TYPE REF TO zcl_md_log,     
+  END OF ts_log_handles_stru.    
+  TYPES: tt_balloghndl TYPE STANDARD TABLE OF ts_log_handles_stru.
+
   data MV_MESSAGE type STRING .
   data MV_DETLEVEL type BALLEVEL .
   data MV_PROBCLASS type BALPROBCL .
@@ -106,7 +111,7 @@ public section.
       !IV_DISPLAY_TYPE type CHAR1 default C_SBAL_PROFILE-SINGLE
       !IO_CONTAINER type ref to CL_GUI_CONTAINER optional
       !IV_POPUP type BOOLEAN default ''
-      !IT_HANDLE type ZCL_API_LOG_TT
+      !IT_HANDLE type tt_balloghndl
     returning
       value(RV_UCOMM) type SY-UCOMM .
   methods CLEAR .
