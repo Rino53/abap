@@ -4,6 +4,7 @@ class ZCL_API_STMS definition
   create public .
 
 public section.
+  types: TT_E071 TYPE STANDARD TABLE OF E071.
 
   data MO_LOG type ref to ZCL_API_LOG.
 
@@ -552,178 +553,6 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
     ENDIF.
 
 
-
-
-
-*    CALL FUNCTION 'TMS_TP_IMPORT'
-
-**DATA:
-**     EV_TP_CMD_STRG TYPE STPA-CMDSTRING,
-**     EV_TP_RET_CODE TYPE STPA-RETCODE,
-**     EV_TP_MESSAGE TYPE STPA-MESSAGE,
-**     EV_TP_VERSION TYPE STPA-VERSION,
-**     EV_TP_ALOG TYPE STPA-FILE,
-**     EV_TP_SLOG TYPE STPA-FILE,
-**     EV_TP_PID TYPE STPA-PID,
-**     EV_TPSTAT_KEY TYPE STPA-TIMESTAMP,
-**      TT_REQUEST TYPE STANDARD TABLE OF TPREQUEST,
-**      TT_PROJECT TYPE STANDARD TABLE OF TPPROJECT,
-**      TT_CLIENT TYPE STANDARD TABLE OF T000,
-**      TT_STDOUT TYPE STANDARD TABLE OF TPSTDOUT,
-**      TT_LOGPTR TYPE  STANDARD TABLE OF TPLOGPTR.
-**
-**
-***    CALL FUNCTION 'TMS_TP_IMPORT'
-**      EXPORTING
-**        iv_system_name           = sy-uname
-**        iv_request               = iv_trkorr
-***       IV_CLIENT                =
-***       IV_CTC_UI                =
-***       IV_CTC_ACTIVE            =
-***       IV_UMODES                =
-***       IV_TP_OPTIONS            =
-***       IV_IGN_PREDEC            =
-***       IV_IGN_CVERS             =
-***       IV_IGN_RC152             =
-***       IV_OFFLINE               =
-***       IV_FEEDBACK              =
-***       IV_PRID_TEXT             =
-***       IV_PRID_MIN              = 0
-***       IV_PRID_MAX              = 100
-***       IV_TEST_IMPORT           =
-***       IV_CMD_IMPORT            =
-***       IV_NO_DELIVERY           =
-***       IV_OWN_REQUEST           =
-***       IV_SUBSET                =
-***       IV_SIMULATE              = GC_CI_SIMU_OFF
-***       IV_BATCHID               =
-***       IT_TRPROJECT             =
-***       IT_SUCCESSOR             =
-***       IT_TARFILTER             =
-**     IMPORTING
-**       EV_TP_CMD_STRG           = EV_TP_CMD_STRG
-**       EV_TP_RET_CODE           = EV_TP_RET_CODE
-**       EV_TP_MESSAGE            = EV_TP_MESSAGE
-**       EV_TP_VERSION            = EV_TP_VERSION
-**       EV_TP_ALOG               = EV_TP_ALOG
-**       EV_TP_SLOG               = EV_TP_SLOG
-**       EV_TP_PID                = EV_TP_PID
-**       EV_TPSTAT_KEY            = EV_TPSTAT_KEY
-**     TABLES
-**       TT_REQUEST               = TT_REQUEST
-**       TT_PROJECT               = TT_PROJECT
-**       TT_CLIENT                = TT_CLIENT
-**       TT_STDOUT                = TT_STDOUT
-**       TT_LOGPTR                = TT_LOGPTR
-**     EXCEPTIONS
-**       PERMISSION_DENIED        = 1
-**       IMPORT_NOT_ALLOWED       = 2
-**       ENQUEUE_FAILED           = 3
-**       TP_CALL_FAILED           = 4
-**       TP_INTERFACE_ERROR       = 5
-**       TP_REPORTED_ERROR        = 6
-**       TP_REPORTED_INFO         = 7
-**       OTHERS                   = 8
-**              .
-**    IF sy-subrc <> 0.
-*** Implement suitable error handling here
-**    ENDIF.
-
-
-**EV_TP_CMD_STRG                  IMPORT AEXK901186 AEY pf=/usr/sap/trans/bin/TP_DOMAIN_AEX.PFL FEEDBACK AFTERIMP
-**EV_TP_RET_CODE                  0000
-**EV_TP_MESSAGE                   Everything OK
-**EV_TP_VERSION                   381.571.20
-**EV_TP_ALOG                      ALOG2410.AEY
-**EV_TP_SLOG                      SLOG2410.AEY
-**EV_TP_PID                       2658984
-**EV_TPSTAT_KEY                   20240305100306876521
-
-
-***DATA:
-****      ls_exception_atk    LIKE es_exception,
-***        lv_rfcdest(255)     TYPE c,
-***        lv_rfc_message(150) TYPE c,
-***        lv_text             TYPE stmscalert-text,
-***        lv_error            TYPE stmscalert-error,
-***        ls_stmsca_tr        TYPE stmsca_tr,
-***        lv_system           TYPE tmscsys-sysnam,
-***        ls_conf             TYPE tmsmconf,
-***        lv_ignore_lock      TYPE stmsc-flag,
-***        lv_holdcon          TYPE tmscsys-holdcon,
-***        lv_logdest          TYPE tmscsys-desadm,
-***        lv_comsys           TYPE tmscsys-comsys,
-***        lv_subrc(10)        TYPE c,
-***        lv_curtime          TYPE sy-timlo,
-***        subrc_sav           TYPE sy-subrc,
-***        lv_subrc_atk        TYPE sy-subrc,
-***        lv_in_update_task   TYPE sy-subrc,
-**** lv_super_sav: 'X' -> super-destination allowed
-****               'F' -> super-destination forced
-***        lv_super_sav        TYPE stmsc-superuser,
-***        lv_srcsys           TYPE tmscsys-sysnam,
-***        lv_srcdom           TYPE tmscsys-domnam,
-***        lv_context          TYPE stmsc-context,
-***        lv_alertid          TYPE stmsc-context,
-***        lv_service_version  TYPE tmscsys-tmsrel,
-***        lv_service_c_length TYPE tmscdes-rfcunicode,
-***        lv_utext(132)       TYPE c,
-***        lv_char(1)          TYPE c,
-***        lv_charlen          TYPE i,
-***        ls_destination      TYPE tmscdes.
-***
-***
-***  LV_SRCSYS  =  'AEX'.
-***LV_SRCDOM  = 'DOMAIN_AEX'.
-
-***DATA:
-***      TT_TABLE TYPE STANDARD TABLE OF  TMSCC1024,
-***      TT_NAMTAB TYPE STANDARD TABLE OF  TMSCNAMTAB,
-***      TT_OBJTAB TYPE STANDARD TABLE OF  TMSCOBJTAB,
-***      TT_XTABLE TYPE STANDARD TABLE OF  TMSCX1024,
-***      TT_ITABLE TYPE STANDARD TABLE OF  TMSINT4,
-***      TT_LTABLE TYPE STANDARD TABLE OF  TMSINT8.
-***
-***  lv_rfcdest = 'AEY_202_SO'.
-***
-***  APPEND iv_trkorr TO tt_table.
-***
-***  CALL FUNCTION 'TMS_CI_START_SERVICE'
-***            DESTINATION lv_rfcdest
-***         EXPORTING
-**** mehr Parameter in Container verpacken !
-***              iv_srcsystem          = lv_srcsys
-***              iv_srcdomain          = lv_srcdom
-****              iv_srcversion         = gc_tms_version
-***              iv_tarsystem          = 'AEY'
-****              iv_tarclient          = iv_tarclient
-****              iv_context            = lv_alertid
-****              iv_access             = iv_access
-***              iv_execmode           = 'ON'
-***              iv_service            = 'TP'
-***              iv_command            = 'TMS_TP_IMPORT'
-***              iv_super              = 'X'
-****              iv_caller             = sy-uname
-***        IMPORTING
-***              es_exception          = ls_stmsca_tr
-***              ev_service_version    = lv_service_version
-***              ev_char_length        = lv_service_c_length
-***         TABLES
-***              tt_table              = TT_TABLE
-***              tt_namtab             = TT_NAMTAB
-***              tt_objtab             = TT_OBJTAB
-***              tt_xtable             = TT_XTABLE
-***              tt_itable             = TT_ITABLE
-***              tt_ltable             = TT_LTABLE
-***         EXCEPTIONS
-***              communication_failure = 1 MESSAGE lv_rfc_message
-***              system_failure        = 2 MESSAGE lv_rfc_message
-***              OTHERS                = 99.
-
-
-
-
-
   ENDMETHOD.
 
 
@@ -1104,7 +933,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 *    PARAMETERS:
 *                p_treq TYPE e070-trkorr MEMORY ID kor,
 *                p_texist TYPE e070-trkorr MEMORY ID zstex,
-*                p_dest TYPE syst-sysid DEFAULT 'AEY' MATCHCODE OBJECT s_realsys,
+*                p_dest TYPE syst-sysid DEFAULT 'PRD' MATCHCODE OBJECT s_realsys,
 *                p_clnt TYPE stpa-client MATCHCODE OBJECT zstmc,
 *                p_slog AS CHECKBOX DEFAULT abap_true.
 *    SELECTION-SCREEN SKIP.
@@ -1112,7 +941,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 *                p_obj1 TYPE E071-OBJ_NAME MEMORY ID sto1,
 *                p_obj2 TYPE E071-OBJ_NAME MEMORY ID sto2,
 *                p_obj3 TYPE E071-OBJ_NAME MEMORY ID sto3,
-*                p_desc TYPE E07T-AS4TEXT DEFAULT 'P-SAPAPPLX Manual transport'.
+*                p_desc TYPE E07T-AS4TEXT DEFAULT 'CC Manual transport'.
 *    SELECTION-SCREEN SKIP.
 *    PARAMETERS:
 *                p_addobj RADIOBUTTON GROUP gstp DEFAULT 'X',
