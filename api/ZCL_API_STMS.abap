@@ -5,7 +5,7 @@ class ZCL_API_STMS definition
 
 public section.
 
-  data MO_LOG type ref to ZCL_API_LOG .
+  data MO_LOG type ref to ZCL_API_LOG.
 
   class-methods CHECK_SYSTEM_TYPE
     returning
@@ -26,31 +26,55 @@ public section.
       value(RS_RESULT) type TRWBO_REQUEST .
   class-methods TRANSPORT_WITH_COPY
     importing
-      !IV_COPY type ABAP_BOOL default ABAP_TRUE
-      !IV_RELEASE type ABAP_BOOL default ABAP_TRUE
-      !IV_IMPORT type ABAP_BOOL default ABAP_TRUE
-      !IV_WORKBENCH type E070-TRKORR default 'DEV123'
-      !IV_DESTINATION type SYST-SYSID default 'QAS'
-      !IV_SHOW_LOG type ABAP_BOOL default ABAP_TRUE .
+      !IX_ADDOBJ type ABAP_BOOL default ABAP_FALSE
+      !IV_COPY type ABAP_BOOL default ABAP_FALSE
+      !IV_RELEASE type ABAP_BOOL default ABAP_FALSE
+      !IV_IMPORT type ABAP_BOOL default ABAP_FALSE
+      !IV_WORKBENCH type E070-TRKORR optional
+      !IV_DESTINATION type SYST-SYSID optional
+      !IV_TO_CLIENT type SYST-MANDT optional
+      !IV_SHOW_LOG type ABAP_BOOL default ABAP_TRUE
+      !IV_TRDESC type E07T-AS4TEXT default 'Manual transport'
+      !IT_ADDOBJS type TABLE optional
+      !IV_TREXIST type E070-TRKORR optional .
   methods CC_CREATE
     importing
       !IV_TRKORR type E070-TRKORR optional
       !IV_TRTYPE type E070-TRFUNCTION default 'T'
       !IV_POSTFIX type TEXT6 default '[copy]'
+      !IV_NEWREQNAME type E07T-AS4TEXT optional
     preferred parameter IV_TRKORR
     returning
       value(RV_TRNEW) type E070-TRKORR .
   methods CONSTRUCTOR
     importing
-      !IV_TARGET_SYS type SYST-SYSID .
+      !IV_TARGET_SYS type SYST-SYSID
+      !IV_TO_CLIENT type SYST-MANDT optional .
   class-methods CLASS_CONSTRUCTOR .
+  methods CC_ADD_OBJ
+    importing
+      !IV_TRTO type E070-TRKORR default 'DEV123'
+      !IV_OBJ type E071-OBJ_NAME default 'Z_SOME_FUNC' .
+  methods CC_ADD_OBJS
+    importing
+      !IV_TRTO type E070-TRKORR
+      !IV_OBJ type E071-OBJ_NAME optional
+      !IT_OBJS type TABLE .
+  methods GET_OBJ_INFO
+    importing
+      !IV_OBJ type CLIKE optional
+    exporting
+      !ES_OBJ_INFO type E071
+    changing
+      !CT_TRINFO type TT_E071 .
 protected section.
 private section.
 
   class-data MS_TMS_SOURCE type TMSCSYS .
   class-data:
     MT_TMS_targets type STANDARD TABLE OF TMSCSYS .
-  data MV_TARGET type TMSCSYS-SYSNAM .
+  data mv_target type TMSCSYS-SYSNAM .
+  data mv_to_client type STPA-CLIENT .
 
   class-methods TEST
     importing
@@ -64,47 +88,341 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_STMS->CC_ADD_OBJ
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TRTO                        TYPE        E070-TRKORR (default ='DEV123')
+* | [--->] IV_OBJ                         TYPE        E071-OBJ_NAME (default ='Z_SOME_FUNC')
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD cc_add_obj.
+
+    CHECK:
+           iv_trto IS NOT INITIAL,
+           iv_obj IS NOT INITIAL.
+
+
+
+    DATA:
+*      lv_trdir      TYPE progname,
+      lt_e071       TYPE STANDARD TABLE OF  e071,
+      lt_trkey      TYPE STANDARD TABLE OF  trkey,
+      lt_devcl_info TYPE STANDARD TABLE OF  devcl_info,
+      lt_tadir      TYPE STANDARD TABLE OF  tadir,
+      lt_tfdir      TYPE STANDARD TABLE OF  tfdir,
+      lt_messages   TYPE  bapiret2_t.
+
+*    lv_trdir = iv_obj.
+
+    CALL FUNCTION '/SDF/TEAP_GET_TADIR'
+      EXPORTING
+*       IS_TADIR    =
+        iv_trdir    = CONV progname( iv_obj )
+*     IMPORTING
+*       EV_COMPONENT  =
+      TABLES
+*       it_e071     = lt_e071
+*       et_trkey    = lt_trkey
+*       et_devcl_info = lt_devcl_info
+        et_tadir    = lt_tadir
+        et_messages = lt_messages.
+
+    LOOP AT lt_tadir INTO DATA(ls_tadir) WHERE obj_name IS NOT INITIAL.
+
+      APPEND INITIAL LINE TO lt_e071 ASSIGNING FIELD-SYMBOL(<ls_tobj>).
+      <ls_tobj>-trkorr = iv_trto.
+*    <ls_tobj>-pgmid = 'LIMU'.
+      <ls_tobj>-pgmid = ls_tadir-pgmid.
+*    <ls_tobj>-object = 'REPS'.
+      <ls_tobj>-object = ls_tadir-object.
+      <ls_tobj>-obj_name = ls_tadir-obj_name.
+    ENDLOOP.
+
+    IF lt_tadir IS INITIAL.
+
+      CALL FUNCTION '/SNP/BB0X_RFC_READ_TFDIR'
+        EXPORTING
+          iv_name  = CONV tfdir-funcname( iv_obj )
+*         IV_MAIN_PROGRAM       = '*'
+*         IV_MAX_COUNT          = 0
+        TABLES
+          et_tfdir = lt_tfdir.
+
+      LOOP AT lt_tfdir INTO DATA(ls_tfdir) WHERE funcname IS NOT INITIAL.
+        APPEND INITIAL LINE TO lt_e071 ASSIGNING <ls_tobj>.
+        <ls_tobj>-trkorr = iv_trto.
+        <ls_tobj>-pgmid = 'LIMU'.
+        <ls_tobj>-object = 'FUNC'.
+        <ls_tobj>-obj_name = ls_tfdir-funcname.
+
+      ENDLOOP.
+
+      IF lt_tfdir IS NOT INITIAL.
+
+*        CALL FUNCTION '/SNP/BB0X_RFC_READ_TMDIR'
+*         EXPORTING
+*           IV_CLASS_NAME        = '*'
+*           IV_METHOD_NAME       = '*'
+*           IV_MAX_COUNT         = 0
+*          TABLES
+*            et_tmdir             =
+                  .
+
+
+      ENDIF.
+
+    ENDIF.
+
+    IF lt_e071 IS NOT INITIAL.
+
+      CALL FUNCTION 'CTS_LOCK_TRKORR'        " eclipse compatible locking...
+        EXPORTING
+          iv_trkorr = iv_trto
+        EXCEPTIONS
+          OTHERS    = 1.
+
+      IF sy-subrc = 0.
+
+        DATA(lv_simu) = CONV abap_bool( space ).
+
+        CALL FUNCTION 'TRINT_APPEND_TO_COMM_ARRAYS'
+          EXPORTING
+*           WI_ERROR_TABLE            = ' '
+            wi_simulation             = lv_simu
+*           WI_SUPPRESS_KEY_CHECK     = ' '
+            wi_trkorr                 = iv_trto
+*           WI_TRPAR_INT_FILLED       = ' '
+*           WI_LOCKKEY_FILLED         = ' '
+            iv_append_at_order        = abap_true
+*           IV_APPEND_AT_ORDER_WITH_LOCK       = ' '
+*           IV_NO_OWNER_CHECK         = ' '
+*           IT_E071K_STR              =
+*           IV_DIALOG                 = 'X'
+*           IV_CHECK_ID               =
+          TABLES
+            wt_e071                   = lt_e071
+*           WT_E071K                  =
+*           WT_TRMESS_INT             =
+*           WT_TRPAR_INT              =
+*           WT_LOCKKEY                =
+          EXCEPTIONS
+            key_check_keysyntax_error = 1
+            ob_check_obj_error        = 2
+            tr_lockmod_failed         = 3
+            tr_lock_enqueue_failed    = 4
+            tr_wrong_order_type       = 5
+            tr_order_update_error     = 6
+            file_access_error         = 7
+            ob_no_systemname          = 8
+            OTHERS                    = 9.
+        IF sy-subrc <> 0.
+          ROLLBACK WORK.
+          mo_log->e( |Object { iv_obj } adding error to { iv_trto } code { sy-subrc } | ).
+
+        ELSE.
+          COMMIT WORK AND WAIT.
+          mo_log->s( |Object { iv_obj } added to { iv_trto } | ).
+
+        ENDIF.
+
+
+        CALL FUNCTION 'CTS_UNLOCK_TRKORR'
+          EXPORTING
+            iv_trkorr = iv_trto
+          EXCEPTIONS
+            OTHERS    = 1.
+
+
+      ENDIF.
+    ENDIF.
+
+
+
+
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_STMS->CC_ADD_OBJS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TRTO                        TYPE        E070-TRKORR
+* | [--->] IV_OBJ                         TYPE        E071-OBJ_NAME(optional)
+* | [--->] IT_OBJS                        TYPE        TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD CC_ADD_OBJS.
+
+     CHECK:
+           iv_trto IS NOT INITIAL,
+           it_objs IS NOT INITIAL.
+
+        DATA:
+*      lv_trdir      TYPE progname,
+      lt_e071       TYPE STANDARD TABLE OF  e071.
+*      lt_trkey      TYPE STANDARD TABLE OF  trkey,
+*      lt_devcl_info TYPE STANDARD TABLE OF  devcl_info,
+*      lt_tadir      TYPE STANDARD TABLE OF  tadir,
+*      lt_tfdir      TYPE STANDARD TABLE OF  tfdir,
+*      lt_messages   TYPE  bapiret2_t.
+
+
+    CHECK: iv_trto IS NOT INITIAL.
+
+    LOOP AT it_objs ASSIGNING FIELD-SYMBOL(<lv_obj>).
+      IF <lv_obj> IS NOT INITIAL.
+        get_obj_info( EXPORTING iv_obj = <lv_obj>
+                      CHANGING  ct_trinfo = lt_e071 ).
+      ENDIF.
+    ENDLOOP.
+
+
+    IF lt_e071 IS NOT INITIAL.
+
+      CALL FUNCTION 'CTS_LOCK_TRKORR'        " eclipse compatible locking...
+        EXPORTING
+          iv_trkorr = iv_trto
+        EXCEPTIONS
+          OTHERS    = 1.
+
+      IF sy-subrc = 0.
+
+        DATA(lv_simu) = CONV abap_bool( space ).
+
+        CALL FUNCTION 'TRINT_APPEND_TO_COMM_ARRAYS'
+          EXPORTING
+*           WI_ERROR_TABLE            = ' '
+            wi_simulation             = lv_simu
+*           WI_SUPPRESS_KEY_CHECK     = ' '
+            wi_trkorr                 = iv_trto
+*           WI_TRPAR_INT_FILLED       = ' '
+*           WI_LOCKKEY_FILLED         = ' '
+            iv_append_at_order        = abap_true
+*           IV_APPEND_AT_ORDER_WITH_LOCK       = ' '
+*           IV_NO_OWNER_CHECK         = ' '
+*           IT_E071K_STR              =
+*           IV_DIALOG                 = 'X'
+*           IV_CHECK_ID               =
+          TABLES
+            wt_e071                   = lt_e071
+*           WT_E071K                  =
+*           WT_TRMESS_INT             =
+*           WT_TRPAR_INT              =
+*           WT_LOCKKEY                =
+          EXCEPTIONS
+            key_check_keysyntax_error = 1
+            ob_check_obj_error        = 2
+            tr_lockmod_failed         = 3
+            tr_lock_enqueue_failed    = 4
+            tr_wrong_order_type       = 5
+            tr_order_update_error     = 6
+            file_access_error         = 7
+            ob_no_systemname          = 8
+            OTHERS                    = 9.
+        IF sy-subrc <> 0.
+          ROLLBACK WORK.
+          mo_log->e( |Objects adding error to { iv_trto } code { sy-subrc } | ).
+
+        ELSE.
+          COMMIT WORK AND WAIT.
+          mo_log->s( |Objects added to { iv_trto } | ).
+
+        ENDIF.
+
+
+        CALL FUNCTION 'CTS_UNLOCK_TRKORR'
+          EXPORTING
+            iv_trkorr = iv_trto
+          EXCEPTIONS
+            OTHERS    = 1.
+
+
+      ENDIF.
+    ENDIF.
+
+
+
+
+
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_API_STMS->CC_CREATE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TRKORR                      TYPE        E070-TRKORR(optional)
 * | [--->] IV_TRTYPE                      TYPE        E070-TRFUNCTION (default ='T')
 * | [--->] IV_POSTFIX                     TYPE        TEXT6 (default ='[copy]')
+* | [--->] IV_NEWREQNAME                  TYPE        E07T-AS4TEXT(optional)
 * | [<-()] RV_TRNEW                       TYPE        E070-TRKORR
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD cc_create.
 
+    CONSTANTS: lc_desc_std TYPE E07T-AS4TEXT VALUE 'CC Manual transport'.
+
     DATA: ls_request TYPE strhi_request_wd.
     ls_request-h-trkorr = iv_trkorr.
 
-    CHECK: ls_request-h-trkorr IS NOT INITIAL.
     CHECK: mv_target IS NOT INITIAL.
 
-    CALL FUNCTION 'TRINT_READ_REQUEST_WD'
-      EXPORTING
-        iv_read_e070       = abap_true
-        iv_read_e07t       = abap_true
-        iv_read_e070c      = abap_true
-        iv_read_e070m      = abap_true
-        iv_read_objs_keys  = abap_true
-        iv_read_attributes = abap_true
-      CHANGING
-        cs_request_wd      = ls_request
-      EXCEPTIONS
-*       ERROR_OCCURED      = 1
-        OTHERS             = 2.
-    IF sy-subrc <> 0.
-      mo_log->e( |Request { iv_trkorr } read error| ).
-      RETURN.
+    IF ls_request-h-trkorr IS NOT INITIAL.
+
+      CALL FUNCTION 'TRINT_READ_REQUEST_WD'
+        EXPORTING
+          iv_read_e070       = abap_true
+          iv_read_e07t       = abap_true
+          iv_read_e070c      = abap_true
+          iv_read_e070m      = abap_true
+          iv_read_objs_keys  = abap_true
+          iv_read_attributes = abap_true
+        CHANGING
+          cs_request_wd      = ls_request
+        EXCEPTIONS
+*         ERROR_OCCURED      = 1
+          OTHERS             = 2.
+      IF sy-subrc <> 0.
+        mo_log->e( |Request { iv_trkorr } read error| ).
+        RETURN.
+
+      ENDIF.
+
+    ELSE.
+
+      ls_request-h-as4text = COND #( WHEN iv_newreqname IS NOT INITIAL THEN iv_newreqname ELSE lc_desc_std ).
 
     ENDIF.
 
     " trfunction:
-*K  Workbench Request
-*W  Customizing Request
-*T  Transport of Copies
+*  K  Workbench Request
+*  W  Customizing Request
+*  T  Transport of Copies
+*
+*  Q  Customizing Task
+*  S  Development/Correction
+*  R  Repair
+*
+*  X  Unclassified Task
+*
+*  C  Relocation of Objects Without Package Change
+*  O  Relocation of Objects with Package Change
+*  E  Relocation of complete package
+*
+*  G  Piece List for CTS Project
+*  M  Client Transport Request
+*  P  Piece List for Upgrade
+*  D  Piece List for Support Package
+*  F  Piece List
+*  L  Deletion transport
+*  Y  Piece list for commit
+*  __________	____________________________________________________________
 
-    DATA(lv_postfix) = |[{ sy-datum+4(4) }.{ sy-timlo(4) }-{ COND char02( WHEN ls_request-h-trfunction = 'K' THEN 'WB'
-                                                                          WHEN ls_request-h-trfunction = 'W' THEN 'CU' ELSE 'XX' ) }]|. " [0903.1513-WB]
+    DATA(lv_postfix) = |[{ sy-datum+4(4) }.{ sy-timlo(4) }-{ COND char02( WHEN ls_request-h-trfunction = 'K' THEN 'WR' " Workbench Request
+                                                                          WHEN ls_request-h-trfunction = 'S' THEN 'WT' " Workbench Task
+                                                                          WHEN ls_request-h-trfunction = 'W' THEN 'CR' " Customizing Request
+                                                                          WHEN ls_request-h-trfunction = 'Q' THEN 'CT' " Customizing Task
+                                                                          WHEN ls_request-h-trfunction = 'R' THEN 'RT' " Repair Task
+                                                                          ELSE 'XX' ) }]|. " [0903.1513-WB]
 
     DATA(ls_trnew) = ls_request-h.
     ls_trnew-trfunction = iv_trtype.
@@ -181,13 +499,14 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
       tt_logptr      TYPE STANDARD TABLE OF  tplogptr,
       tt_stdout      TYPE STANDARD TABLE OF  tpstdout.
 
+    DATA: lv_verbose type STMS_FLAG VALUE abap_false.
 
     CALL FUNCTION 'TMS_MGR_IMPORT_TR_REQUEST'
       EXPORTING
         iv_system                  = mv_target
 *       IV_DOMAIN                  =
         iv_request                 = iv_trkorr
-*       IV_CLIENT                  =
+        iv_client                  = mv_to_client
 *       IV_CTC_ACTIVE              =
 *       IV_OVERTAKE                =
 *       IV_IMPORT_AGAIN            =
@@ -207,7 +526,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 *       IV_FEEDBACK                =
 *       IV_MONITOR                 = 'X'
 *       IV_FORCE                   =
-*       IV_VERBOSE                 =
+       IV_VERBOSE                 = lv_verbose
 *       IS_BATCH                   =
 *       IT_REQUESTS                =
 *       IT_CLIENTS                 =
@@ -229,8 +548,179 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
     IF sy-subrc <> 0.
       mo_log->e( |Import of { iv_trkorr } not done, code { sy-subrc } | ).
     ELSE.
-      mo_log->s( |Transport Request { iv_trkorr } imported into { mv_target } | ).
+      mo_log->s( |Transport Request { iv_trkorr } imported into { mv_target }/{ mv_to_client } | ).
     ENDIF.
+
+
+
+
+
+*    CALL FUNCTION 'TMS_TP_IMPORT'
+
+**DATA:
+**     EV_TP_CMD_STRG TYPE STPA-CMDSTRING,
+**     EV_TP_RET_CODE TYPE STPA-RETCODE,
+**     EV_TP_MESSAGE TYPE STPA-MESSAGE,
+**     EV_TP_VERSION TYPE STPA-VERSION,
+**     EV_TP_ALOG TYPE STPA-FILE,
+**     EV_TP_SLOG TYPE STPA-FILE,
+**     EV_TP_PID TYPE STPA-PID,
+**     EV_TPSTAT_KEY TYPE STPA-TIMESTAMP,
+**      TT_REQUEST TYPE STANDARD TABLE OF TPREQUEST,
+**      TT_PROJECT TYPE STANDARD TABLE OF TPPROJECT,
+**      TT_CLIENT TYPE STANDARD TABLE OF T000,
+**      TT_STDOUT TYPE STANDARD TABLE OF TPSTDOUT,
+**      TT_LOGPTR TYPE  STANDARD TABLE OF TPLOGPTR.
+**
+**
+***    CALL FUNCTION 'TMS_TP_IMPORT'
+**      EXPORTING
+**        iv_system_name           = sy-uname
+**        iv_request               = iv_trkorr
+***       IV_CLIENT                =
+***       IV_CTC_UI                =
+***       IV_CTC_ACTIVE            =
+***       IV_UMODES                =
+***       IV_TP_OPTIONS            =
+***       IV_IGN_PREDEC            =
+***       IV_IGN_CVERS             =
+***       IV_IGN_RC152             =
+***       IV_OFFLINE               =
+***       IV_FEEDBACK              =
+***       IV_PRID_TEXT             =
+***       IV_PRID_MIN              = 0
+***       IV_PRID_MAX              = 100
+***       IV_TEST_IMPORT           =
+***       IV_CMD_IMPORT            =
+***       IV_NO_DELIVERY           =
+***       IV_OWN_REQUEST           =
+***       IV_SUBSET                =
+***       IV_SIMULATE              = GC_CI_SIMU_OFF
+***       IV_BATCHID               =
+***       IT_TRPROJECT             =
+***       IT_SUCCESSOR             =
+***       IT_TARFILTER             =
+**     IMPORTING
+**       EV_TP_CMD_STRG           = EV_TP_CMD_STRG
+**       EV_TP_RET_CODE           = EV_TP_RET_CODE
+**       EV_TP_MESSAGE            = EV_TP_MESSAGE
+**       EV_TP_VERSION            = EV_TP_VERSION
+**       EV_TP_ALOG               = EV_TP_ALOG
+**       EV_TP_SLOG               = EV_TP_SLOG
+**       EV_TP_PID                = EV_TP_PID
+**       EV_TPSTAT_KEY            = EV_TPSTAT_KEY
+**     TABLES
+**       TT_REQUEST               = TT_REQUEST
+**       TT_PROJECT               = TT_PROJECT
+**       TT_CLIENT                = TT_CLIENT
+**       TT_STDOUT                = TT_STDOUT
+**       TT_LOGPTR                = TT_LOGPTR
+**     EXCEPTIONS
+**       PERMISSION_DENIED        = 1
+**       IMPORT_NOT_ALLOWED       = 2
+**       ENQUEUE_FAILED           = 3
+**       TP_CALL_FAILED           = 4
+**       TP_INTERFACE_ERROR       = 5
+**       TP_REPORTED_ERROR        = 6
+**       TP_REPORTED_INFO         = 7
+**       OTHERS                   = 8
+**              .
+**    IF sy-subrc <> 0.
+*** Implement suitable error handling here
+**    ENDIF.
+
+
+**EV_TP_CMD_STRG                  IMPORT AEXK901186 AEY pf=/usr/sap/trans/bin/TP_DOMAIN_AEX.PFL FEEDBACK AFTERIMP
+**EV_TP_RET_CODE                  0000
+**EV_TP_MESSAGE                   Everything OK
+**EV_TP_VERSION                   381.571.20
+**EV_TP_ALOG                      ALOG2410.AEY
+**EV_TP_SLOG                      SLOG2410.AEY
+**EV_TP_PID                       2658984
+**EV_TPSTAT_KEY                   20240305100306876521
+
+
+***DATA:
+****      ls_exception_atk    LIKE es_exception,
+***        lv_rfcdest(255)     TYPE c,
+***        lv_rfc_message(150) TYPE c,
+***        lv_text             TYPE stmscalert-text,
+***        lv_error            TYPE stmscalert-error,
+***        ls_stmsca_tr        TYPE stmsca_tr,
+***        lv_system           TYPE tmscsys-sysnam,
+***        ls_conf             TYPE tmsmconf,
+***        lv_ignore_lock      TYPE stmsc-flag,
+***        lv_holdcon          TYPE tmscsys-holdcon,
+***        lv_logdest          TYPE tmscsys-desadm,
+***        lv_comsys           TYPE tmscsys-comsys,
+***        lv_subrc(10)        TYPE c,
+***        lv_curtime          TYPE sy-timlo,
+***        subrc_sav           TYPE sy-subrc,
+***        lv_subrc_atk        TYPE sy-subrc,
+***        lv_in_update_task   TYPE sy-subrc,
+**** lv_super_sav: 'X' -> super-destination allowed
+****               'F' -> super-destination forced
+***        lv_super_sav        TYPE stmsc-superuser,
+***        lv_srcsys           TYPE tmscsys-sysnam,
+***        lv_srcdom           TYPE tmscsys-domnam,
+***        lv_context          TYPE stmsc-context,
+***        lv_alertid          TYPE stmsc-context,
+***        lv_service_version  TYPE tmscsys-tmsrel,
+***        lv_service_c_length TYPE tmscdes-rfcunicode,
+***        lv_utext(132)       TYPE c,
+***        lv_char(1)          TYPE c,
+***        lv_charlen          TYPE i,
+***        ls_destination      TYPE tmscdes.
+***
+***
+***  LV_SRCSYS  =  'AEX'.
+***LV_SRCDOM  = 'DOMAIN_AEX'.
+
+***DATA:
+***      TT_TABLE TYPE STANDARD TABLE OF  TMSCC1024,
+***      TT_NAMTAB TYPE STANDARD TABLE OF  TMSCNAMTAB,
+***      TT_OBJTAB TYPE STANDARD TABLE OF  TMSCOBJTAB,
+***      TT_XTABLE TYPE STANDARD TABLE OF  TMSCX1024,
+***      TT_ITABLE TYPE STANDARD TABLE OF  TMSINT4,
+***      TT_LTABLE TYPE STANDARD TABLE OF  TMSINT8.
+***
+***  lv_rfcdest = 'AEY_202_SO'.
+***
+***  APPEND iv_trkorr TO tt_table.
+***
+***  CALL FUNCTION 'TMS_CI_START_SERVICE'
+***            DESTINATION lv_rfcdest
+***         EXPORTING
+**** mehr Parameter in Container verpacken !
+***              iv_srcsystem          = lv_srcsys
+***              iv_srcdomain          = lv_srcdom
+****              iv_srcversion         = gc_tms_version
+***              iv_tarsystem          = 'AEY'
+****              iv_tarclient          = iv_tarclient
+****              iv_context            = lv_alertid
+****              iv_access             = iv_access
+***              iv_execmode           = 'ON'
+***              iv_service            = 'TP'
+***              iv_command            = 'TMS_TP_IMPORT'
+***              iv_super              = 'X'
+****              iv_caller             = sy-uname
+***        IMPORTING
+***              es_exception          = ls_stmsca_tr
+***              ev_service_version    = lv_service_version
+***              ev_char_length        = lv_service_c_length
+***         TABLES
+***              tt_table              = TT_TABLE
+***              tt_namtab             = TT_NAMTAB
+***              tt_objtab             = TT_OBJTAB
+***              tt_xtable             = TT_XTABLE
+***              tt_itable             = TT_ITABLE
+***              tt_ltable             = TT_LTABLE
+***         EXCEPTIONS
+***              communication_failure = 1 MESSAGE lv_rfc_message
+***              system_failure        = 2 MESSAGE lv_rfc_message
+***              OTHERS                = 99.
+
+
 
 
 
@@ -417,6 +907,7 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 * | Instance Public Method ZCL_API_STMS->CONSTRUCTOR
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] IV_TARGET_SYS                  TYPE        SYST-SYSID
+* | [--->] IV_TO_CLIENT                   TYPE        SYST-MANDT(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD constructor.
 
@@ -431,6 +922,158 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
       " error?
     ENDIF.
 
+    IF iv_to_client IS NOT INITIAL.
+      mv_to_client = iv_to_client.
+    ENDIF.
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_API_STMS->GET_OBJ_INFO
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_OBJ                         TYPE        CLIKE(optional)
+* | [<---] ES_OBJ_INFO                    TYPE        E071
+* | [<-->] CT_TRINFO                      TYPE        TT_E071
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_obj_info.
+
+    CHECK:
+           iv_obj IS NOT INITIAL.
+
+
+
+    DATA:
+*      lv_trdir      TYPE progname,
+*      lt_e071       TYPE STANDARD TABLE OF  e071,
+*      lt_trkey      TYPE STANDARD TABLE OF  trkey,
+*      lt_devcl_info TYPE STANDARD TABLE OF  devcl_info,
+      lt_trkey    TYPE STANDARD TABLE OF  trkey,
+      lt_tadir    TYPE STANDARD TABLE OF  tadir,
+      lt_tfdir    TYPE STANDARD TABLE OF  tfdir,
+      lt_messages TYPE  bapiret2_t.
+
+*    lv_trdir = iv_obj.
+
+    CALL FUNCTION '/SDF/TEAP_GET_TADIR'
+      EXPORTING
+*       IS_TADIR    =
+        iv_trdir    = CONV progname( iv_obj )
+*     IMPORTING
+*       EV_COMPONENT  =
+      TABLES
+*       it_e071     = lt_e071
+        et_trkey    = lt_trkey
+*       et_devcl_info = lt_devcl_info
+        et_tadir    = lt_tadir
+        et_messages = lt_messages.
+
+    LOOP AT lt_tadir INTO DATA(ls_tadir) WHERE obj_name IS NOT INITIAL.
+
+      CLEAR: es_obj_info.
+
+      IF ls_tadir-obj_name = iv_obj.
+
+        es_obj_info-pgmid  = ls_tadir-pgmid.
+        es_obj_info-object = ls_tadir-object.
+        es_obj_info-obj_name = ls_tadir-obj_name.
+
+      ELSE.
+        READ TABLE lt_trkey INTO DATA(ls_trkey) WITH KEY devclass = ls_tadir-devclass
+                                                         obj_type = ls_tadir-object
+                                                         obj_name = ls_tadir-obj_name.
+        IF sy-subrc = 0.
+          es_obj_info-pgmid = 'LIMU'. " sub_type = REPS
+          es_obj_info-object   = ls_trkey-sub_type.
+          es_obj_info-obj_name = ls_trkey-sub_name.
+        ENDIF.
+
+
+      ENDIF.
+
+      IF es_obj_info IS NOT INITIAL.
+        APPEND es_obj_info TO ct_trinfo.
+        mo_log->s( |Object { es_obj_info-obj_name } added | ).
+
+      ENDIF.
+
+    ENDLOOP.
+
+    IF lt_tadir IS INITIAL.
+
+      CALL FUNCTION '/SNP/BB0X_RFC_READ_TFDIR'
+        EXPORTING
+          iv_name  = CONV tfdir-funcname( iv_obj )
+*         IV_MAIN_PROGRAM       = '*'
+*         IV_MAX_COUNT          = 0
+        TABLES
+          et_tfdir = lt_tfdir.
+
+      LOOP AT lt_tfdir INTO DATA(ls_tfdir) WHERE funcname IS NOT INITIAL.
+        APPEND INITIAL LINE TO ct_trinfo ASSIGNING FIELD-SYMBOL(<ls_tobj>).
+*        <ls_tobj>-trkorr = iv_trto.
+        <ls_tobj>-pgmid = 'LIMU'.
+        <ls_tobj>-object = 'FUNC'.
+        <ls_tobj>-obj_name = ls_tfdir-funcname.
+
+        mo_log->s( |Object { <ls_tobj>-obj_name } added | ).
+
+      ENDLOOP.
+
+      IF lt_tfdir IS INITIAL.
+
+        DATA:
+          lv_class_name TYPE tmdir-classname,
+          lv_meth_name  TYPE tmdir-methodname,
+          lt_tmdir      TYPE STANDARD TABLE OF tmdir.
+
+        SPLIT iv_obj AT ' ' INTO lv_class_name lv_meth_name.
+        IF lv_meth_name IS INITIAL.
+          SPLIT iv_obj AT '=>' INTO lv_class_name lv_meth_name.
+          IF lv_meth_name IS INITIAL.
+            SPLIT iv_obj AT '->' INTO lv_class_name lv_meth_name.
+            IF lv_meth_name IS INITIAL.
+                SPLIT iv_obj AT '-' INTO lv_class_name lv_meth_name.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+        IF lv_class_name IS NOT INITIAL AND
+           lv_meth_name IS NOT INITIAL.
+
+          CALL FUNCTION '/SNP/BB0X_RFC_READ_TMDIR'
+            EXPORTING
+              iv_class_name  = lv_class_name
+              iv_method_name = lv_meth_name
+*             IV_MAX_COUNT   = 0
+            TABLES
+              et_tmdir       = lt_tmdir.
+
+          IF lines( lt_tmdir ) = 1.
+            LOOP AT lt_tmdir INTO DATA(ls_clsobj).
+              APPEND INITIAL LINE TO ct_trinfo ASSIGNING <ls_tobj>.
+*        <ls_tobj>-trkorr = iv_trto.
+              <ls_tobj>-pgmid = 'LIMU'.
+              <ls_tobj>-object = 'METH'.
+              <ls_tobj>-obj_name = |{ ls_clsobj-classname ALPHA = OUT }{ ls_clsobj-methodname }|. " classname = exact 30 chars
+
+              mo_log->s( |Object { ls_clsobj-classname }->{ ls_clsobj-methodname } added | ).
+            ENDLOOP.
+
+          ENDIF.
+
+
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    IF <ls_tobj> IS ASSIGNED.
+      es_obj_info = <ls_tobj>.
+    ENDIF.
+
+
+
 
   ENDMETHOD.
 
@@ -442,48 +1085,78 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 * | [--->] IV_TCODE                       TYPE        SY-TCODE (default ='SM30')
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD test. " >> CODE for GUI REP
-
-**    REPORT zbc_stms_app.
-**
-**    SELECTION-SCREEN BEGIN OF BLOCK 001 WITH FRAME TITLE TEXT-001.
-**      PARAMETERS: p_treq TYPE e070-trkorr OBLIGATORY MEMORY ID kor,
-**                  p_dest TYPE syst-sysid DEFAULT 'TST' MATCHCODE OBJECT s_realsys,
-**                  p_slog AS CHECKBOX DEFAULT abap_true.
-**      SELECTION-SCREEN SKIP.
-**      PARAMETERS: p_copytr RADIOBUTTON GROUP gstp,
-**                  p_releas RADIOBUTTON GROUP gstp,
-**                  p_import RADIOBUTTON GROUP gstp DEFAULT 'X'.
-**    SELECTION-SCREEN END OF BLOCK 001.
-**      SELECTION-SCREEN PUSHBUTTON 2(23) TEXT-S10 USER-COMMAND TORG.
-**
-**      AT SELECTION-SCREEN.
-**        IF sy-ucomm = 'TORG '.
-**          CALL TRANSACTION 'SE10' WITH AUTHORITY-CHECK AND SKIP FIRST SCREEN.
-**        ENDIF.
-**
-**
-**    AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_treq.
-**      CALL FUNCTION 'TR_F4_REQUESTS'
-**        EXPORTING
-**          iv_trkorr_pattern   = p_treq
-**        IMPORTING
-**          ev_selected_request = p_treq.
-**
-**    INITIALIZATION.
-**
-**    END-OF-SELECTION.
-**      PERFORM main.
-**
-**    FORM main.
-**
-**      zcl_stms=>transport_with_copy( iv_copy    = p_copytr
-**                                          iv_release = p_releas
-**                                          iv_import  = p_import
-**                                          iv_workbench   = p_treq
-**                                          iv_destination = p_dest
-**                                          iv_show_log    = p_slog ).
-**
-**    ENDFORM.
+*  *&---------------------------------------------------------------------*
+*  *& Report ZCL_API_STMS_APP
+*  *&---------------------------------------------------------------------*
+*  *&  Create ToC and import it into Test system
+*  *&---------------------------------------------------------------------*
+*  REPORT zbc_stms_app
+*
+*  *    P_ADDOBJ  0. Add objs to transport
+*  *    P_COPYTR  1. Create Transport of Copy
+*  *    P_RELEAS  2. Release ToC
+*  *    P_IMPORT  3. Import ToC
+*  *    P_SLOG  Show Log
+*  *    P_DESC  Transport Description
+*  *    P_TEXIST  Existing request
+*
+*  SELECTION-SCREEN BEGIN OF BLOCK 001 WITH FRAME TITLE TEXT-001.
+*    PARAMETERS:
+*                p_treq TYPE e070-trkorr MEMORY ID kor,
+*                p_texist TYPE e070-trkorr MEMORY ID zstex,
+*                p_dest TYPE syst-sysid DEFAULT 'AEY' MATCHCODE OBJECT s_realsys,
+*                p_clnt TYPE stpa-client MATCHCODE OBJECT zstmc,
+*                p_slog AS CHECKBOX DEFAULT abap_true.
+*    SELECTION-SCREEN SKIP.
+*    PARAMETERS:
+*                p_obj1 TYPE E071-OBJ_NAME MEMORY ID sto1,
+*                p_obj2 TYPE E071-OBJ_NAME MEMORY ID sto2,
+*                p_obj3 TYPE E071-OBJ_NAME MEMORY ID sto3,
+*                p_desc TYPE E07T-AS4TEXT DEFAULT 'P-SAPAPPLX Manual transport'.
+*    SELECTION-SCREEN SKIP.
+*    PARAMETERS:
+*                p_addobj RADIOBUTTON GROUP gstp DEFAULT 'X',
+*                p_copytr RADIOBUTTON GROUP gstp,
+*                p_releas RADIOBUTTON GROUP gstp,
+*                p_import RADIOBUTTON GROUP gstp.
+*  SELECTION-SCREEN END OF BLOCK 001.
+*
+*  SELECTION-SCREEN PUSHBUTTON 2(23) TEXT-S10 USER-COMMAND TORG.
+*
+*  AT SELECTION-SCREEN.
+*    IF sy-ucomm = 'TORG '.
+*      CALL TRANSACTION 'SE10' WITH AUTHORITY-CHECK AND SKIP FIRST SCREEN.
+*    ENDIF.
+*
+*
+*  AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_treq.
+*    CALL FUNCTION 'TR_F4_REQUESTS'
+*      EXPORTING
+*        iv_trkorr_pattern   = p_treq
+*      IMPORTING
+*        ev_selected_request = p_treq.
+*
+*  INITIALIZATION.
+*
+*  END-OF-SELECTION.
+*    PERFORM main.
+*
+*  FORM main.
+*
+*    ZCL_API_STMS=>transport_with_copy( iv_copy    = p_copytr
+*                                        iv_release = p_releas
+*                                        iv_import  = p_import
+*                                        ix_addobj  = p_addobj
+*                                        iv_workbench = p_treq
+*                                        iv_trexist   = p_texist
+*                                        iv_destination = p_dest
+*                                        iv_to_client = p_clnt
+*                                        iv_show_log    = p_slog
+*                                        iv_trdesc = p_desc
+*                                        it_addobjs = VALUE sfw_t_transkey( ( p_obj1 ) ( p_obj2 ) ( p_obj3 ) )
+*                                        ).
+*
+*  ENDFORM.
 
 
   ENDMETHOD.
@@ -492,39 +1165,68 @@ CLASS ZCL_API_STMS IMPLEMENTATION.
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Static Public Method ZCL_API_STMS=>TRANSPORT_WITH_COPY
 * +-------------------------------------------------------------------------------------------------+
-* | [--->] IV_COPY                        TYPE        ABAP_BOOL (default =ABAP_TRUE)
-* | [--->] IV_RELEASE                     TYPE        ABAP_BOOL (default =ABAP_TRUE)
-* | [--->] IV_IMPORT                      TYPE        ABAP_BOOL (default =ABAP_TRUE)
-* | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR (default ='')
-* | [--->] IV_DESTINATION                 TYPE        SYST-SYSID (default ='')
+* | [--->] IX_ADDOBJ                      TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [--->] IV_COPY                        TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [--->] IV_RELEASE                     TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [--->] IV_IMPORT                      TYPE        ABAP_BOOL (default =ABAP_FALSE)
+* | [--->] IV_WORKBENCH                   TYPE        E070-TRKORR(optional)
+* | [--->] IV_DESTINATION                 TYPE        SYST-SYSID(optional)
+* | [--->] IV_TO_CLIENT                   TYPE        SYST-MANDT(optional)
 * | [--->] IV_SHOW_LOG                    TYPE        ABAP_BOOL (default =ABAP_TRUE)
+* | [--->] IV_TRDESC                      TYPE        E07T-AS4TEXT (default ='Manual transport')
+* | [--->] IT_ADDOBJS                     TYPE        TABLE(optional)
+* | [--->] IV_TREXIST                     TYPE        E070-TRKORR(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD transport_with_copy.
+
     CHECK: cl_ca_system=>is_productive( ) = abap_false. " HINT: instead, you can use FM 'TR_SYS_PARAMS'
     CHECK: check_system_type( ) = 'D'. " using FM 'TR_SYS_PARAMS'
 
-    DATA(lo_trman) = NEW ZCL_API_STMS( iv_destination ).
+    DATA(lo_trman) = NEW ZCL_API_STMS( iv_target_sys = iv_destination
+                                        iv_to_client  = iv_to_client ).
     DATA(lv_workbench) = iv_workbench.
     DATA(lv_procstep) = cond byte( WHEN iv_import  = abap_true THEN 3
                                    WHEN iv_release = abap_true THEN 2
                                    WHEN iv_copy    = abap_true THEN 1
                                    ELSE 0 ).
+    DATA(lv_trcopy) = iv_trexist.
 
     IF lv_procstep >= 1.
-      DATA(lv_trcopy) = lo_trman->cc_create( lv_workbench ).
-      lo_trman->cc_insert_objs( iv_trfrom = lv_workbench
-                                iv_trto   = lv_trcopy ).
-    ELSE.
-      lv_trcopy = iv_workbench.
+      IF lv_trcopy IS INITIAL.
+        lv_trcopy = lo_trman->cc_create( iv_trkorr = lv_workbench
+                                         iv_newreqname = iv_trdesc ).
+      ENDIF.
+
+      IF lv_workbench IS NOT INITIAL.
+        lo_trman->cc_insert_objs( iv_trfrom = lv_workbench
+                                  iv_trto   = lv_trcopy ).
+      ENDIF.
+
+
+
+*    ELSE.
+*      lv_trcopy = iv_workbench.
     ENDIF.
+
+    IF lv_trcopy IS NOT INITIAL.
+      lo_trman->cc_add_objs( iv_trto = lv_trcopy
+                             it_objs = it_addobjs[] ).
+
+
+    ENDIF.
+
 
     IF lv_trcopy IS NOT INITIAL.
 
       IF lv_procstep >= 2.
-        lo_trman->cc_release( lv_trcopy ).
+        DATA(lv_do_release) = lo_trman->mo_log->show( iv_title = |Continue? dest { lo_trman->mv_target }/{ lo_trman->mv_to_client }| ).
+        IF lv_do_release = lo_trman->mo_log->c_window_action-okay.  "&ONT.
+          lo_trman->cc_release( lv_trcopy ).
+        ENDIF.
       ENDIF.
 
-      IF lv_procstep >= 3.
+      IF lv_procstep >= 3 AND
+         lv_do_release = lo_trman->mo_log->c_window_action-okay.
         lo_trman->cc_import( lv_trcopy ).
       ENDIF.
     ENDIF.
